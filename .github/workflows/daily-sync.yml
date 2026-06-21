@@ -1,0 +1,52 @@
+name: daily-sync
+
+# TEST_MODE is currently true in send_reminders.js -- this workflow will only send SMS to the
+# hardcoded test phone number until TEST_MODE is manually changed to false in the code.
+
+on:
+  schedule:
+    # 10pm Eastern during EDT (UTC-4) = 02:00 UTC. GitHub Actions cron uses UTC only and does
+    # not auto-adjust for daylight saving time.
+    # When Eastern Standard Time begins (clocks fall back, roughly early November): change to
+    # '0 3 * * *' (10pm EST = 03:00 UTC).
+    # When Eastern Daylight Time begins again (clocks spring forward, roughly early March):
+    # change back to '0 2 * * *'.
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SQUARE_ACCESS_TOKEN: ${{ secrets.SQUARE_ACCESS_TOKEN }}
+      SQUARE_ENVIRONMENT: ${{ secrets.SQUARE_ENVIRONMENT }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+      TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Pull Square data into Supabase
+        run: node pull.js
+
+      - name: Send maintenance reminder SMS
+        run: node send_reminders.js
+
+      # send_reminders.js continues after individual SMS failures and exits 0 unless the script
+      # crashes; match_conversions only skips if that step exits with a non-zero code.
+      - name: Match booking conversions
+        run: node match_conversions.js
