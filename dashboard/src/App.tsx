@@ -7,6 +7,7 @@ import LoginPage from "./pages/LoginPage";
 import OverviewPage from "./pages/OverviewPage";
 import SchedulePage from "./pages/SchedulePage";
 import SendNowPage from "./pages/SendNowPage";
+import SmsQueuePage from "./pages/SmsQueuePage";
 import SmsLogPage from "./pages/SmsLogPage";
 import SmsSubscribersPage from "./pages/SmsSubscribersPage";
 import { clearToken, getToken } from "./lib/api";
@@ -28,6 +29,7 @@ export default function App() {
       <Route element={<Layout onLogout={handleLogout} />}>
         <Route index element={<OverviewPage />} />
         <Route path="schedule" element={<SchedulePage />} />
+        <Route path="sms-queue" element={<SmsQueuePage />} />
         <Route path="enrollments" element={<EnrollmentsPage />} />
         <Route path="sms-subscribers" element={<SmsSubscribersPage />} />
         <Route path="send" element={<SendNowPage />} />

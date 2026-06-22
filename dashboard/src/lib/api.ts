@@ -105,6 +105,10 @@ export function fetchEligible() {
   return apiFetch<EligibleResponse>("api-eligible");
 }
 
+export function fetchSmsQueue() {
+  return apiFetch<SmsQueuePreview>("api-sms-queue");
+}
+
 export function sendReminder(clientId?: string) {
   return apiFetch<SendResult>("send-reminder", {
     method: "POST",
@@ -400,6 +404,50 @@ export interface EligibleResponse {
   maintenance: EligibleClient[];
   general: EligibleClient[];
   generalAfterMaintenance: EligibleClient[];
+}
+
+export interface SmsQueueRow {
+  clientId: string;
+  name: string;
+  phone: string | null;
+  city: string | null;
+  track: ScheduleTrack;
+  trackLabel: string;
+  triggerType: string;
+  preferredLanguage: "en" | "fr";
+  sequenceNumber: number;
+  daysSinceLastDetail: number;
+  requiredDays: number;
+  daysUntilSend: number;
+  lastDetailDate: string;
+  lastDetailDateFormatted: string;
+  lastServiceType: string | null;
+  messagePreview: string;
+  status: "due_now" | "upcoming" | "blocked_cooldown";
+  sendTiming: string;
+  blockReason: string | null;
+  lastSmsSentAt: string | null;
+}
+
+export interface SmsQueuePreview {
+  generatedAt: string;
+  inSendWindow: boolean;
+  rules: {
+    sendWindow: string;
+    cooldownDays: number;
+    maxPerHour: number;
+    note: string;
+  };
+  summary: {
+    dueNow: number;
+    dueNowWillSendThisHour: number;
+    upcoming: number;
+    blockedCooldown: number;
+    eligibleConfirmed: number;
+  };
+  dueNow: SmsQueueRow[];
+  upcoming: SmsQueueRow[];
+  blocked: SmsQueueRow[];
 }
 
 export interface SendResult {

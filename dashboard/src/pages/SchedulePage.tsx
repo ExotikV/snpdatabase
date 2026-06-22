@@ -40,11 +40,11 @@ const DEFAULT_MESSAGES: Record<Language, Record<ScheduleTrack, string>> = {
 
 const TRACK_DESCRIPTIONS: Record<ScheduleTrack, string> = {
   maintenance:
-    "Service-area cities only. Reminders run from day 30 through day 60 after last detail.",
+    "Service-area cities only, while 0–60 days since last detail. You choose the day for each step — automated texts send only when that day is reached.",
   general:
-    "Outside service area — first reminder at 60 days after last detail, then your follow-up steps.",
+    "Outside service area — clients move here after 60 days. You choose the day for each step.",
   general_after_maintenance:
-    "Service-area clients who did not book during the maintenance window — first reminder at day 90, separate messages from standard general.",
+    "Service-area clients who did not book during the maintenance window. You choose the day for each step.",
 };
 
 const AUTO_SAVE_DELAY_MS = 800;

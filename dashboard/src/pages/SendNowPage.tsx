@@ -163,7 +163,7 @@ export default function SendNowPage() {
         <strong>After maintenance miss</strong> is for service-area clients who did not book by day 60
         (from day 90). Automatic sends are capped at <strong>20 per hour</strong> and skip anyone
         texted in the last <strong>6 days</strong> (including bulk manual). Texts only go out{" "}
-        <strong>9 AM – 7 PM Eastern</strong>.
+        <strong>1 PM – 7 PM Eastern</strong>.
       </p>
 
       {error && <div className="error-banner">{error}</div>}

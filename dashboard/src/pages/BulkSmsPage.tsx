@@ -316,7 +316,7 @@ export default function BulkSmsPage() {
         client receives the <strong>English or French</strong> message based on their language
         preference on file. Each send is logged as <strong>Manual</strong> in the SMS log with a
         unique tracked booking link. Clients texted in the last <strong>6 days</strong> are skipped
-        automatically. Sends are blocked outside <strong>9 AM – 7 PM Eastern</strong>.
+        automatically. Sends are blocked outside <strong>1 PM – 7 PM Eastern</strong>.
       </p>
 
       <div className="panel" style={{ marginBottom: "1.25rem" }}>

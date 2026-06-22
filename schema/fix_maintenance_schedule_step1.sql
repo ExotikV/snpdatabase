@@ -1,5 +1,5 @@
--- Maintenance step 1 must be 30 days (maintenance window starts at day 30).
--- Automated sends also enforce this in code, but fix the saved schedule too.
+-- Optional one-time fix: set maintenance step 1 to 30 days if it was saved too low.
+-- Schedule steps have no minimum in the app — use only if you want step 1 at 30.
 
 update reminder_schedule
 set days_since_last_detail = 30

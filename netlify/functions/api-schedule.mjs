@@ -14,7 +14,7 @@ import {
   hasLanguageColumn,
   hasTrackColumn,
 } from "../../lib/schedule-db.js";
-import { TRACKS } from "../../lib/tracks.js";
+import { TRACKS, MAINTENANCE_REMINDER_START_DAYS, GENERAL_REMINDER_START_DAYS, GENERAL_AFTER_MAINTENANCE_MISS_DAYS } from "../../lib/tracks.js";
 import { validateScheduleStepDays } from "../../lib/schedule-rules.js";
 
 function parseTrack(value) {
@@ -187,10 +187,10 @@ export const handler = withAuth(async (event) => {
           days_since_last_detail:
             body.days_since_last_detail ??
             (track === TRACKS.GENERAL_AFTER_MAINTENANCE
-              ? 90
+              ? GENERAL_AFTER_MAINTENANCE_MISS_DAYS
               : track === TRACKS.GENERAL
-                ? 60
-                : 30),
+                ? GENERAL_REMINDER_START_DAYS
+                : MAINTENANCE_REMINDER_START_DAYS),
           active: body.active ?? true,
           message_body: body.message_body ?? defaultMessage(track, language),
         })
