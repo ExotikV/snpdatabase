@@ -1,7 +1,7 @@
 import { withAuth, jsonResponse } from "../../lib/auth.js";
 import { getSupabase } from "../../lib/supabase.js";
 
-import { ALL_SMS_TRIGGER_TYPES, TRIGGER_LABELS } from "../../lib/tracks.js";
+import { SMS_LOG_TRIGGER_TYPES, TRIGGER_LABELS } from "../../lib/tracks.js";
 
 export const handler = withAuth(async () => {
   try {
@@ -12,7 +12,7 @@ export const handler = withAuth(async () => {
       .select(
         "id, client_id, trigger_type, status, sent_at, converted, sequence_number, error_message, created_at, clients(name, phone)",
       )
-      .in("trigger_type", ALL_SMS_TRIGGER_TYPES)
+      .in("trigger_type", SMS_LOG_TRIGGER_TYPES)
       .order("created_at", { ascending: false })
       .limit(200);
 

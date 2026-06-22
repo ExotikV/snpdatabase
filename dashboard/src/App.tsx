@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
+import BulkSmsPage from "./pages/BulkSmsPage";
 import EnrollmentsPage from "./pages/EnrollmentsPage";
 import OverviewPage from "./pages/OverviewPage";
 import SchedulePage from "./pages/SchedulePage";
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="enrollments" element={<EnrollmentsPage />} />
         <Route path="send" element={<SendNowPage />} />
+        <Route path="bulk-sms" element={<BulkSmsPage />} />
         <Route path="sms-log" element={<SmsLogPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

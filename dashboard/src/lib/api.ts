@@ -73,6 +73,18 @@ export function sendReminder(clientId?: string) {
   });
 }
 
+export function fetchManualSmsClients(search = "") {
+  const query = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : "";
+  return apiFetch<ManualSmsClientsResponse>(`api-manual-sms${query}`);
+}
+
+export function sendManualBulkSms(messageBody: string, clientIds: string[]) {
+  return apiFetch<ManualBulkSmsResult>("api-manual-sms", {
+    method: "POST",
+    body: JSON.stringify({ messageBody, clientIds }),
+  });
+}
+
 export function fetchTestSmsOptions(search = "") {
   const query = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : "";
   return apiFetch<TestSmsOptionsResponse>(`api-test-sms${query}`);
@@ -340,6 +352,33 @@ export interface SendResult {
   result?: { ok: boolean; name: string; reason?: string; smsLogId?: string };
   sentCount?: number;
   failedCount?: number;
+}
+
+export interface ManualSmsClient {
+  clientId: string;
+  name: string | null;
+  phone: string | null;
+  city: string | null;
+  preferredLanguage: "en" | "fr";
+  lastServiceType: string | null;
+  lastDetailDate: string | null;
+  daysSince: number | null;
+}
+
+export interface ManualSmsClientsResponse {
+  clients: ManualSmsClient[];
+  productionSendsEnabled: boolean;
+  testPhone: string;
+}
+
+export interface ManualBulkSmsResult {
+  ok: boolean;
+  requested: number;
+  sentCount: number;
+  failedCount: number;
+  skippedCount: number;
+  sent: { clientId: string; name: string | null; phone?: string }[];
+  failed: { clientId: string; name: string | null; reason?: string }[];
 }
 
 export const REFRESH_MS = 60 * 60 * 1000;
