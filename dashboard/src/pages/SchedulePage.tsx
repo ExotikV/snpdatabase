@@ -34,9 +34,9 @@ const DEFAULT_MESSAGES: Record<Language, Record<Track, string>> = {
 
 const TRACK_DESCRIPTIONS: Record<Track, string> = {
   maintenance:
-    "Maintenance detail — service-area cities only, and last detail within 60 days.",
+    "Service-area cities only. Reminders run from day 30 through day 60 after last detail — do not change unless you mean to.",
   general:
-    "Regular detail — past clients only (must have a completed detail). All cities once past the 60-day maintenance window.",
+    "Outside service area: first reminder at 60 days after last detail. Service-area clients who did not book during the maintenance window (days 30–60) start the general sequence at day 90 instead.",
 };
 
 const AUTO_SAVE_DELAY_MS = 800;

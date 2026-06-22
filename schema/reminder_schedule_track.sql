@@ -22,21 +22,21 @@ create unique index if not exists reminder_schedule_track_sequence_idx
 
 -- Default general sequence (customize in dashboard)
 insert into reminder_schedule (track, sequence_number, days_since_last_detail, active, message_body)
-select 'general', 1, 30, true,
+select 'general', 1, 60, true,
   'Hi {first_name}, it''s been a while since your last visit with SNP Detailing. Book your next detail here: {booking_url}'
 where not exists (
   select 1 from reminder_schedule where track = 'general' and sequence_number = 1
 );
 
 insert into reminder_schedule (track, sequence_number, days_since_last_detail, active, message_body)
-select 'general', 2, 60, true,
+select 'general', 2, 90, true,
   'Hi {first_name}, we''d love to see you again - book your SNP Detailing appointment: {booking_url}'
 where not exists (
   select 1 from reminder_schedule where track = 'general' and sequence_number = 2
 );
 
 insert into reminder_schedule (track, sequence_number, days_since_last_detail, active, message_body)
-select 'general', 3, 90, true,
+select 'general', 3, 120, true,
   'Hi {first_name}, last note from SNP Detailing - reserve your spot when you''re ready: {booking_url}'
 where not exists (
   select 1 from reminder_schedule where track = 'general' and sequence_number = 3

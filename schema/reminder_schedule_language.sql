@@ -22,21 +22,21 @@ create unique index if not exists reminder_schedule_track_language_sequence_idx
 
 -- French general sequence
 insert into reminder_schedule (track, language, sequence_number, days_since_last_detail, active, message_body)
-select 'general', 'fr', 1, 30, true,
+select 'general', 'fr', 1, 60, true,
   'Bonjour {prenom}, ca fait un bon moment depuis votre derniere visite chez SNP Detailing. Reservez votre prochain {detail} ici : {lien_reservation}'
 where not exists (
   select 1 from reminder_schedule where track = 'general' and language = 'fr' and sequence_number = 1
 );
 
 insert into reminder_schedule (track, language, sequence_number, days_since_last_detail, active, message_body)
-select 'general', 'fr', 2, 60, true,
+select 'general', 'fr', 2, 90, true,
   'Bonjour {prenom}, on aimerait vous revoir - reservez votre rendez-vous SNP Detailing : {lien_reservation}'
 where not exists (
   select 1 from reminder_schedule where track = 'general' and language = 'fr' and sequence_number = 2
 );
 
 insert into reminder_schedule (track, language, sequence_number, days_since_last_detail, active, message_body)
-select 'general', 'fr', 3, 90, true,
+select 'general', 'fr', 3, 120, true,
   'Bonjour {prenom}, dernier rappel de SNP Detailing - reservez quand vous etes pret : {lien_reservation}'
 where not exists (
   select 1 from reminder_schedule where track = 'general' and language = 'fr' and sequence_number = 3

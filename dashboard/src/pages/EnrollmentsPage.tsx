@@ -152,10 +152,11 @@ export default function EnrollmentsPage() {
         immediately and shown here as unsubscribed.
       </p>
       <p className="muted" style={{ marginTop: "0.5rem" }}>
-        <strong>Maintenance</strong> track = service-area city + detail within 60 days.{" "}
-        <strong>General</strong> track = everyone else with a past detail. Uncheck{" "}
-        <strong>Receive SMS</strong> to exclude someone from the dashboard — saves immediately.
-        Re-checking the box re-enrolls them (including after a STOP reply).
+        <strong>Maintenance</strong> track = service-area only, reminders from day 30 through day 60 (unchanged).{" "}
+        <strong>General</strong> track = outside service area, starts at <strong>60 days</strong> after last
+        detail; service-area clients who did not book maintenance during that window start general at{" "}
+        <strong>90 days</strong>. Uncheck <strong>Receive SMS</strong> to exclude someone — saves
+        immediately. Re-checking re-enrolls them (including after a STOP reply).
       </p>
       {error && <div className="error-banner">{error}</div>}
       {notice && <div className="panel" style={{ background: "#ecfdf3" }}>{notice}</div>}

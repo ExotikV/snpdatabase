@@ -2,13 +2,29 @@ import { jsonResponse, parseJsonBody, withAuth } from "../../lib/auth.js";
 import { getSupabase } from "../../lib/supabase.js";
 import {
   getEligibleCityLabels,
+  getGeneralFirstReminderMinDays,
   getSmsTrackForClient,
   isEligibleCity,
   isMaintenanceProgramEligible,
+  isWaitingForGeneralStart,
 } from "../../lib/client-tracks.js";
 import { TRACK_LABELS } from "../../lib/tracks.js";
 import { LANGUAGE_LABELS, normalizeLanguage } from "../../lib/languages.js";
 import { getOptOutStatusLabel, OPT_OUT_SOURCES } from "../../lib/sms-opt-out.js";
+
+function buildSmsTrackLabel({ optedOut, optedOutLabel, smsTrack, daysSinceLastDetail, city }) {
+  if (optedOut) return optedOutLabel;
+  if (!smsTrack) return "No completed detail";
+
+  if (smsTrack === "general" && daysSinceLastDetail != null) {
+    if (isWaitingForGeneralStart({ city, daysSinceLastDetail, smsTrack })) {
+      const minDays = getGeneralFirstReminderMinDays({ city });
+      return `General (starts at ${minDays} days)`;
+    }
+  }
+
+  return TRACK_LABELS[smsTrack];
+}
 
 export const handler = withAuth(async (event) => {
   const supabase = getSupabase();
@@ -90,11 +106,13 @@ export const handler = withAuth(async (event) => {
           maintenanceCityEligible: isEligibleCity(client.city),
           maintenanceEligible,
           smsTrack,
-          smsTrackLabel: client.opted_out
-            ? optedOutLabel
-            : smsTrack
-              ? TRACK_LABELS[smsTrack]
-              : "No completed detail",
+          smsTrackLabel: buildSmsTrackLabel({
+            optedOut: client.opted_out,
+            optedOutLabel,
+            smsTrack,
+            daysSinceLastDetail,
+            city: client.city,
+          }),
           daysSinceLastDetail,
           daysSinceAnchor,
           smsEnrolled: !client.opted_out && Boolean(lastDetail),
