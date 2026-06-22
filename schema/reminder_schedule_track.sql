@@ -13,7 +13,7 @@ alter table reminder_schedule
 
 alter table reminder_schedule
   add constraint reminder_schedule_track_check
-  check (track in ('maintenance', 'general'));
+  check (track in ('maintenance', 'general', 'general_after_maintenance'));
 
 drop index if exists reminder_schedule_sequence_number_idx;
 

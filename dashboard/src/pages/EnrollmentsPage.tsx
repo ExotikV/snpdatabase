@@ -16,7 +16,9 @@ export default function EnrollmentsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [filter, setFilter] = useState<"all" | "maintenance" | "general" | "excluded" | "stop">("all");
+  const [filter, setFilter] = useState<
+    "all" | "maintenance" | "general" | "general_after_maintenance" | "excluded" | "stop"
+  >("all");
   const [cityDrafts, setCityDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -45,6 +47,9 @@ export default function EnrollmentsPage() {
       if (filter === "stop") return client.optedOut && client.optedOutSource === "stop_reply";
       if (filter === "maintenance") return client.smsTrack === "maintenance";
       if (filter === "general") return client.smsTrack === "general";
+      if (filter === "general_after_maintenance") {
+        return client.smsTrack === "general_after_maintenance";
+      }
       return true;
     });
   }, [clients, filter]);
@@ -153,10 +158,9 @@ export default function EnrollmentsPage() {
       </p>
       <p className="muted" style={{ marginTop: "0.5rem" }}>
         <strong>Maintenance</strong> track = service-area only, reminders from day 30 through day 60 (unchanged).{" "}
-        <strong>General</strong> track = outside service area, starts at <strong>60 days</strong> after last
-        detail; service-area clients who did not book maintenance during that window start general at{" "}
-        <strong>90 days</strong>. Uncheck <strong>Receive SMS</strong> to exclude someone — saves
-        immediately. Re-checking re-enrolls them (including after a STOP reply).
+        <strong>General</strong> track = outside service area from <strong>60 days</strong>;{" "}
+        <strong>General (after maintenance)</strong> = service-area clients who did not book by day 60,
+        starting at <strong>90 days</strong>. Each has its own message sequence on the Schedule page.
       </p>
       {error && <div className="error-banner">{error}</div>}
       {notice && <div className="panel" style={{ background: "#ecfdf3" }}>{notice}</div>}
@@ -180,7 +184,8 @@ export default function EnrollmentsPage() {
             <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
               <option value="all">All clients</option>
               <option value="maintenance">Maintenance track</option>
-              <option value="general">General track</option>
+              <option value="general">General (standard)</option>
+              <option value="general_after_maintenance">General (after maintenance miss)</option>
               <option value="excluded">Excluded from SMS</option>
               <option value="stop">Unsubscribed via STOP</option>
             </select>
@@ -265,7 +270,13 @@ export default function EnrollmentsPage() {
                     </span>
                   ) : (
                     <span
-                      className={`badge ${client.smsTrack === "maintenance" ? "badge-converted" : "badge-pending"}`}
+                      className={`badge ${
+                        client.smsTrack === "maintenance"
+                          ? "badge-converted"
+                          : client.smsTrack === "general_after_maintenance"
+                            ? "badge-failed"
+                            : "badge-pending"
+                      }`}
                     >
                       {client.smsTrackLabel}
                     </span>

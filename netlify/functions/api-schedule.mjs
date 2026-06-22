@@ -8,6 +8,8 @@ import { LANGUAGES, normalizeLanguage, parseLanguage } from "../../lib/languages
 import {
   DEFAULT_GENERAL_STEPS_EN,
   DEFAULT_GENERAL_STEPS_FR,
+  DEFAULT_GENERAL_AFTER_MAINTENANCE_STEPS_EN,
+  DEFAULT_GENERAL_AFTER_MAINTENANCE_STEPS_FR,
   formatScheduleError,
   hasLanguageColumn,
   hasTrackColumn,
@@ -15,7 +17,13 @@ import {
 import { TRACKS } from "../../lib/tracks.js";
 
 function parseTrack(value) {
-  if (value === TRACKS.GENERAL || value === TRACKS.MAINTENANCE) return value;
+  if (
+    value === TRACKS.GENERAL ||
+    value === TRACKS.MAINTENANCE ||
+    value === TRACKS.GENERAL_AFTER_MAINTENANCE
+  ) {
+    return value;
+  }
   return null;
 }
 
@@ -24,6 +32,12 @@ function parseLanguageQuery(value) {
 }
 
 function defaultMessage(track, language) {
+  if (track === TRACKS.GENERAL_AFTER_MAINTENANCE) {
+    return language === LANGUAGES.FR
+      ? DEFAULT_GENERAL_AFTER_MAINTENANCE_STEPS_FR[0].message_body
+      : DEFAULT_GENERAL_AFTER_MAINTENANCE_STEPS_EN[0].message_body;
+  }
+
   if (track === TRACKS.GENERAL) {
     return language === LANGUAGES.FR
       ? DEFAULT_GENERAL_STEPS_FR[0].message_body
@@ -164,7 +178,13 @@ export const handler = withAuth(async (event) => {
           track,
           language,
           sequence_number: body.sequence_number ?? nextSequence,
-          days_since_last_detail: body.days_since_last_detail ?? 30,
+          days_since_last_detail:
+            body.days_since_last_detail ??
+            (track === TRACKS.GENERAL_AFTER_MAINTENANCE
+              ? 90
+              : track === TRACKS.GENERAL
+                ? 60
+                : 30),
           active: body.active ?? true,
           message_body: body.message_body ?? defaultMessage(track, language),
         })

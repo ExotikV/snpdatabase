@@ -10,6 +10,9 @@ export const handler = withAuth(async (event) => {
 
     const maintenance = eligible.filter((client) => client.track === "maintenance");
     const general = eligible.filter((client) => client.track === "general");
+    const generalAfterMaintenance = eligible.filter(
+      (client) => client.track === "general_after_maintenance",
+    );
 
     const mapClient = (client) => ({
       clientId: client.clientId,
@@ -30,6 +33,7 @@ export const handler = withAuth(async (event) => {
       eligible: eligible.map(mapClient),
       maintenance: maintenance.map(mapClient),
       general: general.map(mapClient),
+      generalAfterMaintenance: generalAfterMaintenance.map(mapClient),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load eligible clients";

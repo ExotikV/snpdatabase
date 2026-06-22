@@ -81,6 +81,7 @@ function EligibleTable({
 export default function SendNowPage() {
   const [maintenance, setMaintenance] = useState<EligibleClient[]>([]);
   const [general, setGeneral] = useState<EligibleClient[]>([]);
+  const [generalAfterMaintenance, setGeneralAfterMaintenance] = useState<EligibleClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -97,6 +98,7 @@ export default function SendNowPage() {
       ]);
       setMaintenance(eligibleData.maintenance);
       setGeneral(eligibleData.general);
+      setGeneralAfterMaintenance(eligibleData.generalAfterMaintenance ?? []);
       setProductionSendsEnabled(testOptions.productionSendsEnabled);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load eligible clients");
@@ -131,7 +133,7 @@ export default function SendNowPage() {
   }
 
   async function handleSendAll() {
-    const total = maintenance.length + general.length;
+    const total = maintenance.length + general.length + generalAfterMaintenance.length;
     if (!window.confirm(`Send all ${total} due reminder(s)?`)) return;
     setSendingAll(true);
     setNotice(null);
@@ -151,14 +153,15 @@ export default function SendNowPage() {
     return <div className="loading">Loading eligible clients…</div>;
   }
 
-  const totalDue = maintenance.length + general.length;
+  const totalDue = maintenance.length + general.length + generalAfterMaintenance.length;
 
   return (
     <>
       <p className="muted" style={{ marginTop: 0 }}>
-        <strong>Maintenance</strong> reminders are limited to your service-area cities (detail
-        within 60 days). <strong>General</strong> reminders go to past clients outside that window.
-        Clients with no completed detail are not eligible.
+        <strong>Maintenance</strong> reminders are limited to your service-area cities (days 30–60).{" "}
+        <strong>General</strong> reminders go to clients outside the service area (from day 60).{" "}
+        <strong>After maintenance miss</strong> is for service-area clients who did not book by day 60
+        (from day 90).
       </p>
 
       {error && <div className="error-banner">{error}</div>}
@@ -193,8 +196,17 @@ export default function SendNowPage() {
       />
 
       <EligibleTable
-        title={`General track (${general.length})`}
+        title={`General — standard (${general.length})`}
         rows={general}
+        sendingId={sendingId}
+        sendingAll={sendingAll}
+        productionDisabled={!productionSendsEnabled}
+        onSend={handleSend}
+      />
+
+      <EligibleTable
+        title={`General — after maintenance miss (${generalAfterMaintenance.length})`}
+        rows={generalAfterMaintenance}
         sendingId={sendingId}
         sendingAll={sendingAll}
         productionDisabled={!productionSendsEnabled}

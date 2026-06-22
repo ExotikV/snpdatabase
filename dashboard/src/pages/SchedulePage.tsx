@@ -3,6 +3,7 @@ import {
   MESSAGE_VARIABLES_EN,
   MESSAGE_VARIABLES_FR,
   ScheduleStep,
+  ScheduleTrack,
   TestSmsClient,
   createScheduleStep,
   deleteScheduleStep,
@@ -14,29 +15,36 @@ import {
 import { getFirstName, renderMessageTemplate, buildBookingUrl, toDateInputValue } from "../../../lib/message-template.js";
 import { getBookingSourceForTrack } from "../../../lib/tracks.js";
 
-type Track = "maintenance" | "general";
+type TopTrack = "maintenance" | "general";
+type GeneralVariant = "general" | "general_after_maintenance";
 type Language = "en" | "fr";
 
-const DEFAULT_MESSAGES: Record<Language, Record<Track, string>> = {
+const DEFAULT_MESSAGES: Record<Language, Record<ScheduleTrack, string>> = {
   en: {
     maintenance:
       "Hi {first_name}, it has been {days_since} days since your last {service} on {last_detail_date}. Book your maintenance detail here: {booking_url}",
     general:
       "Hi {first_name}, book your next SNP Detailing visit here: {booking_url}",
+    general_after_maintenance:
+      "Hi {first_name}, we noticed you haven't booked your maintenance detail yet. Book your next visit here: {booking_url}",
   },
   fr: {
     maintenance:
       "Bonjour {prenom}, ca fait {jours_depuis} jours depuis votre dernier {detail} du {date_dernier_detail}. Reservez votre entretien ici : {lien_reservation}",
     general:
       "Bonjour {prenom}, reservez votre prochain rendez-vous SNP Detailing ici : {lien_reservation}",
+    general_after_maintenance:
+      "Bonjour {prenom}, nous avons remarque que vous n'avez pas encore reserve votre entretien. Reservez ici : {lien_reservation}",
   },
 };
 
-const TRACK_DESCRIPTIONS: Record<Track, string> = {
+const TRACK_DESCRIPTIONS: Record<ScheduleTrack, string> = {
   maintenance:
-    "Service-area cities only. Reminders run from day 30 through day 60 after last detail — do not change unless you mean to.",
+    "Service-area cities only. Reminders run from day 30 through day 60 after last detail.",
   general:
-    "Outside service area: first reminder at 60 days after last detail. Service-area clients who did not book during the maintenance window (days 30–60) start the general sequence at day 90 instead.",
+    "Outside service area — first reminder at 60 days after last detail, then your follow-up steps.",
+  general_after_maintenance:
+    "Service-area clients who did not book during the maintenance window — first reminder at day 90, separate messages from standard general.",
 };
 
 const AUTO_SAVE_DELAY_MS = 800;
@@ -66,6 +74,7 @@ function daysSinceDate(dateValue: string) {
 
 function previewMessage(
   template: string,
+  track: ScheduleTrack,
   vars: {
     name: string;
     rawService: string;
@@ -81,13 +90,16 @@ function previewMessage(
     daysSince: vars.daysSince,
     bookingUrl: buildBookingUrl({
       shortRef: "test01",
-      source: getBookingSourceForTrack("maintenance"),
+      source: getBookingSourceForTrack(track),
     }),
   });
 }
 
 export default function SchedulePage() {
-  const [activeTrack, setActiveTrack] = useState<Track>("maintenance");
+  const [activeTopTrack, setActiveTopTrack] = useState<TopTrack>("maintenance");
+  const [activeGeneralVariant, setActiveGeneralVariant] = useState<GeneralVariant>("general");
+  const activeScheduleTrack: ScheduleTrack =
+    activeTopTrack === "maintenance" ? "maintenance" : activeGeneralVariant;
   const [activeLanguage, setActiveLanguage] = useState<Language>("en");
   const [steps, setSteps] = useState<ScheduleStep[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +128,7 @@ export default function SchedulePage() {
     setTestClients(data.clients);
   }, []);
 
-  const load = useCallback(async (track: Track, language: Language) => {
+  const load = useCallback(async (track: ScheduleTrack, language: Language) => {
     setError(null);
     setSaveStatus("idle");
     setLoading(true);
@@ -140,8 +152,8 @@ export default function SchedulePage() {
   }, [loadTestClients]);
 
   useEffect(() => {
-    load(activeTrack, activeLanguage);
-  }, [activeTrack, activeLanguage, load]);
+    load(activeScheduleTrack, activeLanguage);
+  }, [activeScheduleTrack, activeLanguage, load]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -227,18 +239,18 @@ export default function SchedulePage() {
 
   const testPreviewTemplate = useMemo(() => {
     const firstStep = steps.find((step) => step.message_body?.trim());
-    return firstStep?.message_body ?? DEFAULT_MESSAGES[activeLanguage][activeTrack];
-  }, [steps, activeTrack, activeLanguage]);
+    return firstStep?.message_body ?? DEFAULT_MESSAGES[activeLanguage][activeScheduleTrack];
+  }, [steps, activeScheduleTrack, activeLanguage]);
 
   const testPreview = useMemo(
     () =>
-      previewMessage(testPreviewTemplate, {
+      previewMessage(testPreviewTemplate, activeScheduleTrack, {
         name: testName,
         rawService: testService,
         lastDetailDate: testLastDetailDate || "2026-01-01",
         daysSince: testDaysSince,
       }),
-    [testPreviewTemplate, testName, testService, testLastDetailDate, testDaysSince],
+    [testPreviewTemplate, activeScheduleTrack, testName, testService, testLastDetailDate, testDaysSince],
   );
 
   const saveStatusLabel = useMemo(() => {
@@ -256,12 +268,18 @@ export default function SchedulePage() {
   async function handleAddStep() {
     setError(null);
     try {
+      const defaultDays =
+        activeScheduleTrack === "maintenance"
+          ? 30
+          : activeScheduleTrack === "general_after_maintenance"
+            ? 90
+            : 60;
       const { step } = await createScheduleStep({
-        track: activeTrack,
+        track: activeScheduleTrack,
         language: activeLanguage,
-        days_since_last_detail: activeTrack === "maintenance" ? 30 : 60,
+        days_since_last_detail: defaultDays,
         active: true,
-        message_body: DEFAULT_MESSAGES[activeLanguage][activeTrack],
+        message_body: DEFAULT_MESSAGES[activeLanguage][activeScheduleTrack],
       });
       setSteps((current) => {
         const next = [...current, step];
@@ -294,8 +312,8 @@ export default function SchedulePage() {
     setMessage(null);
     try {
       const result = await sendTestSms({
-        message_body: step.message_body ?? DEFAULT_MESSAGES[activeLanguage][activeTrack],
-        track: activeTrack,
+        message_body: step.message_body ?? DEFAULT_MESSAGES[activeLanguage][activeScheduleTrack],
+        track: activeScheduleTrack,
         client_name: testName,
         service_type: testService,
         last_detail_date: testLastDetailDate || undefined,
@@ -318,19 +336,40 @@ export default function SchedulePage() {
       <div className="inline-actions" style={{ marginBottom: "1rem" }}>
         <button
           type="button"
-          className={activeTrack === "maintenance" ? "btn" : "btn btn-secondary"}
-          onClick={() => setActiveTrack("maintenance")}
+          className={activeTopTrack === "maintenance" ? "btn" : "btn btn-secondary"}
+          onClick={() => setActiveTopTrack("maintenance")}
         >
           Maintenance sequence
         </button>
         <button
           type="button"
-          className={activeTrack === "general" ? "btn" : "btn btn-secondary"}
-          onClick={() => setActiveTrack("general")}
+          className={activeTopTrack === "general" ? "btn" : "btn btn-secondary"}
+          onClick={() => setActiveTopTrack("general")}
         >
           General sequence
         </button>
       </div>
+
+      {activeTopTrack === "general" && (
+        <div className="inline-actions" style={{ marginBottom: "1rem" }}>
+          <button
+            type="button"
+            className={activeGeneralVariant === "general" ? "btn" : "btn btn-secondary"}
+            onClick={() => setActiveGeneralVariant("general")}
+          >
+            Standard general (60 days)
+          </button>
+          <button
+            type="button"
+            className={
+              activeGeneralVariant === "general_after_maintenance" ? "btn" : "btn btn-secondary"
+            }
+            onClick={() => setActiveGeneralVariant("general_after_maintenance")}
+          >
+            After maintenance miss (90 days)
+          </button>
+        </div>
+      )}
 
       <div className="inline-actions" style={{ marginBottom: "1rem" }}>
         <button
@@ -350,8 +389,8 @@ export default function SchedulePage() {
       </div>
 
       <p className="muted" style={{ marginTop: 0 }}>
-        {TRACK_DESCRIPTIONS[activeTrack]} All clients receive SMS on one track or the other —
-        never both at once.
+        {TRACK_DESCRIPTIONS[activeScheduleTrack]} Clients receive one track at a time — never
+        maintenance and general together.
       </p>
 
       {migrationRequired && (

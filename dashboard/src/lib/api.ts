@@ -26,8 +26,10 @@ export function fetchSmsLog() {
   return apiFetch<{ smsLog: SmsLogRow[] }>("api-sms-log");
 }
 
+export type ScheduleTrack = "maintenance" | "general" | "general_after_maintenance";
+
 export function fetchSchedule(
-  track: "maintenance" | "general" = "maintenance",
+  track: ScheduleTrack = "maintenance",
   language: "en" | "fr" = "en",
 ) {
   return apiFetch<{
@@ -83,7 +85,7 @@ export function fetchTestPhone() {
 
 export function sendTestSms(payload: {
   message_body: string;
-  track?: "maintenance" | "general";
+  track?: ScheduleTrack;
   client_name?: string;
   service_type?: string;
   last_detail_date?: string;
@@ -173,7 +175,7 @@ export interface EnrollmentClient {
   preferredLanguageLabel: string;
   cityEligible: boolean;
   maintenanceEligible: boolean;
-  smsTrack: "maintenance" | "general" | null;
+  smsTrack: ScheduleTrack | null;
   smsTrackLabel: string;
   optedOut: boolean;
   optedOutAt: string | null;
@@ -231,7 +233,7 @@ export interface SmsLogRow {
 
 export interface ScheduleStep {
   id: string;
-  track: "maintenance" | "general";
+  track: ScheduleTrack;
   language: "en" | "fr";
   sequence_number: number;
   days_since_last_detail: number;
@@ -245,7 +247,7 @@ export interface EligibleClient {
   name: string;
   phone: string | null;
   city: string | null;
-  track: "maintenance" | "general";
+  track: ScheduleTrack;
   preferredLanguage: "en" | "fr";
   maintenanceEligible: boolean;
   daysSince: number;
@@ -259,6 +261,7 @@ export interface EligibleResponse {
   eligible: EligibleClient[];
   maintenance: EligibleClient[];
   general: EligibleClient[];
+  generalAfterMaintenance: EligibleClient[];
 }
 
 export interface SendResult {

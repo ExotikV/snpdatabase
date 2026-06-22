@@ -12,18 +12,20 @@ import { TRACK_LABELS } from "../../lib/tracks.js";
 import { LANGUAGE_LABELS, normalizeLanguage } from "../../lib/languages.js";
 import { getOptOutStatusLabel, OPT_OUT_SOURCES } from "../../lib/sms-opt-out.js";
 
-function buildSmsTrackLabel({ optedOut, optedOutLabel, smsTrack, daysSinceLastDetail, city }) {
+function buildSmsTrackLabel({ optedOut, optedOutLabel, smsTrack, daysSinceLastDetail }) {
   if (optedOut) return optedOutLabel;
   if (!smsTrack) return "No completed detail";
 
-  if (smsTrack === "general" && daysSinceLastDetail != null) {
-    if (isWaitingForGeneralStart({ city, daysSinceLastDetail, smsTrack })) {
-      const minDays = getGeneralFirstReminderMinDays({ city });
-      return `General (starts at ${minDays} days)`;
-    }
+  if (
+    (smsTrack === "general" || smsTrack === "general_after_maintenance") &&
+    daysSinceLastDetail != null &&
+    isWaitingForGeneralStart({ track: smsTrack, daysSinceLastDetail })
+  ) {
+    const minDays = getGeneralFirstReminderMinDays({ track: smsTrack });
+    return `${TRACK_LABELS[smsTrack]} (starts at ${minDays} days)`;
   }
 
-  return TRACK_LABELS[smsTrack];
+  return TRACK_LABELS[smsTrack] ?? smsTrack;
 }
 
 export const handler = withAuth(async (event) => {
@@ -111,7 +113,6 @@ export const handler = withAuth(async (event) => {
             optedOutLabel,
             smsTrack,
             daysSinceLastDetail,
-            city: client.city,
           }),
           daysSinceLastDetail,
           daysSinceAnchor,

@@ -4,6 +4,7 @@ import { getSupabase } from "../../lib/supabase.js";
 const TRIGGER_LABELS = {
   maintenance_reminder: "Maintenance",
   general_reminder: "General",
+  general_after_maintenance_reminder: "General (after maintenance)",
 };
 
 export const handler = withAuth(async () => {
@@ -15,7 +16,11 @@ export const handler = withAuth(async () => {
       .select(
         "id, client_id, trigger_type, status, sent_at, converted, sequence_number, error_message, created_at, clients(name, phone)",
       )
-      .in("trigger_type", ["maintenance_reminder", "general_reminder"])
+      .in("trigger_type", [
+        "maintenance_reminder",
+        "general_reminder",
+        "general_after_maintenance_reminder",
+      ])
       .order("created_at", { ascending: false })
       .limit(200);
 
