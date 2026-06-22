@@ -168,14 +168,14 @@ export default function SmsQueuePage() {
           <div className="card">
             <div className="card-label">Upcoming</div>
             <div className="card-value">{preview.summary.upcoming}</div>
-            <div className="muted">Waiting for schedule day</div>
+            <div className="muted">Waiting for exact schedule day</div>
           </div>
         </div>
 
         <p className="muted">
-          Each client gets <strong>one step at a time</strong> — never the same step twice per detail.
-          After <strong>2 failed send attempts</strong> on a step, automated retries stop until their next
-          detail. Sends run hourly, {preview.rules.sendWindow}, max {preview.rules.maxPerHour} per run.{" "}
+          Each step sends on its <strong>exact schedule day only</strong> — if that day passed, it is skipped
+          (e.g. step at day 60 will not send on day 70). Manual texts this cycle count as step 1.
+          Sends run hourly, {preview.rules.sendWindow}, max {preview.rules.maxPerHour} per run.{" "}
           {preview.rules.note}
         </p>
       </div>
