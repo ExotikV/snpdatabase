@@ -7,7 +7,6 @@ import {
   sendManualBulkSms,
 } from "../lib/api";
 import { getFirstName, renderMessageTemplate } from "../../../lib/message-template.js";
-import { buildBookingUrl } from "../../../lib/booking-url.js";
 
 type TrackFilter =
   | "all"
@@ -39,21 +38,27 @@ const MESSAGE_PRESETS = [
   },
   {
     id: "book-next",
-    label: "Book your next visit",
-    en: "Hi {first_name}, we'd love to see you again at SNP Detailing. Book your next appointment here: {booking_url}",
-    fr: "Bonjour {prenom}, nous aimerions vous revoir chez SNP Detailing. Réservez votre prochain rendez-vous ici : {lien_reservation}",
+    label: "Book your next visit (general)",
+    en: "Hi {first_name}, we'd love to see you again at SNP Detailing. Book your next appointment here: {booking_url_general}",
+    fr: "Bonjour {prenom}, nous aimerions vous revoir chez SNP Detailing. Réservez votre prochain rendez-vous ici : {lien_general}",
   },
   {
     id: "seasonal",
-    label: "Seasonal reminder",
-    en: "Hi {first_name}, it's a great time to refresh your vehicle. Book with SNP Detailing: {booking_url}",
-    fr: "Bonjour {prenom}, c'est le bon moment pour rafraîchir votre véhicule. Réservez avec SNP Detailing : {lien_reservation}",
+    label: "Seasonal reminder (general)",
+    en: "Hi {first_name}, it's a great time to refresh your vehicle. Book with SNP Detailing: {booking_url_general}",
+    fr: "Bonjour {prenom}, c'est le bon moment pour rafraîchir votre véhicule. Réservez avec SNP Detailing : {lien_general}",
   },
   {
     id: "maintenance-nudge",
     label: "Maintenance nudge",
-    en: "Hi {first_name}, it's been {days_since} days since your last {service}. Book your maintenance detail: {booking_url}",
-    fr: "Bonjour {prenom}, cela fait {jours_depuis} jours depuis votre dernier {detail}. Réservez votre entretien : {lien_reservation}",
+    en: "Hi {first_name}, it's been {days_since} days since your last {service}. Book your maintenance detail: {booking_url_maintenance}",
+    fr: "Bonjour {prenom}, cela fait {jours_depuis} jours depuis votre dernier {detail}. Réservez votre entretien : {lien_entretien}",
+  },
+  {
+    id: "after-maintenance",
+    label: "After maintenance miss",
+    en: "Hi {first_name}, we still have openings for a full detail. Book here: {booking_url_after_maintenance}",
+    fr: "Bonjour {prenom}, nous avons encore des places pour un détail complet. Réservez ici : {lien_apres_entretien}",
   },
 ];
 
@@ -93,7 +98,7 @@ function buildPreview(
     serviceType: sample.lastServiceType,
     lastDetailDate: sample.lastDetailDate,
     daysSince: sample.daysSince,
-    bookingUrl: buildBookingUrl({}),
+    shortRef: "preview",
   });
 }
 
@@ -309,7 +314,8 @@ export default function BulkSmsPage() {
       <p className="muted section-intro">
         One-off messages to selected clients — not tied to the automated reminder schedule. Each
         client receives the <strong>English or French</strong> message based on their language
-        preference on file. Each send is logged as <strong>Manual</strong> in the SMS log.
+        preference on file. Each send is logged as <strong>Manual</strong> in the SMS log with a
+        unique tracked booking link.
       </p>
 
       <div className="panel" style={{ marginBottom: "1.25rem" }}>
@@ -364,8 +370,12 @@ export default function BulkSmsPage() {
 
         <p className="muted" style={{ marginTop: "0.75rem", marginBottom: 0 }}>
           English variables: {MESSAGE_VARIABLES_EN.join(", ")}. French variables:{" "}
-          {MESSAGE_VARIABLES_FR.join(", ")}. Opt-out footer is appended in the client&apos;s
-          language.
+          {MESSAGE_VARIABLES_FR.join(", ")}. Pick the booking link that matches what you are
+          promoting — <code>{`{booking_url_maintenance}`}</code> (maintenance),{" "}
+          <code>{`{booking_url_general}`}</code> (general),{" "}
+          <code>{`{booking_url_after_maintenance}`}</code> (after maintenance miss). Legacy{" "}
+          <code>{`{booking_url}`}</code> defaults to maintenance. Each send gets a unique tracked
+          ref. Opt-out footer is appended in the client&apos;s language.
         </p>
 
         {previewText && (

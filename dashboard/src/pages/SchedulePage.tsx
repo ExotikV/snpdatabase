@@ -88,6 +88,7 @@ function previewMessage(
     serviceType: vars.rawService,
     lastDetailDate: vars.lastDetailDate,
     daysSince: vars.daysSince,
+    shortRef: "test01",
     bookingUrl: buildBookingUrl({
       shortRef: "test01",
       source: getBookingSourceForTrack(track),
@@ -533,6 +534,11 @@ export default function SchedulePage() {
             ) : (
               <>English variables: {MESSAGE_VARIABLES_EN.join(", ")}</>
             )}
+            <br />
+            Booking links: use <code>{`{booking_url}`}</code> for this track&apos;s link, or{" "}
+            <code>{`{booking_url_maintenance}`}</code>, <code>{`{booking_url_general}`}</code>,{" "}
+            <code>{`{booking_url_after_maintenance}`}</code> to pick attribution explicitly. Each
+            send gets a unique tracked ref.
             <br />
             Changes save automatically. Clients receive the sequence matching their website language (
             <code>clients.preferred_language</code>).
