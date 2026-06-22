@@ -423,10 +423,8 @@ export interface SmsQueueRow {
   lastDetailDateFormatted: string;
   lastServiceType: string | null;
   messagePreview: string;
-  status: "due_now" | "upcoming" | "blocked_cooldown";
+  status: "due_now" | "upcoming";
   sendTiming: string;
-  blockReason: string | null;
-  lastSmsSentAt: string | null;
 }
 
 export interface SmsQueuePreview {
@@ -434,7 +432,6 @@ export interface SmsQueuePreview {
   inSendWindow: boolean;
   rules: {
     sendWindow: string;
-    cooldownDays: number;
     maxPerHour: number;
     note: string;
   };
@@ -442,12 +439,10 @@ export interface SmsQueuePreview {
     dueNow: number;
     dueNowWillSendThisHour: number;
     upcoming: number;
-    blockedCooldown: number;
     eligibleConfirmed: number;
   };
   dueNow: SmsQueueRow[];
   upcoming: SmsQueueRow[];
-  blocked: SmsQueueRow[];
 }
 
 export interface SendResult {

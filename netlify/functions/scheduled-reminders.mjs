@@ -1,10 +1,7 @@
 import { runMatchConversions } from "../../lib/conversions.js";
 import { getEligibleClients } from "../../lib/eligibility.js";
 import { runSquareSync } from "../../lib/square-sync.js";
-import {
-  MAX_SCHEDULED_SMS_PER_RUN,
-  SMS_COOLDOWN_DAYS,
-} from "../../lib/sms-cooldown.js";
+import { MAX_SCHEDULED_SMS_PER_RUN } from "../../lib/sms-cooldown.js";
 import { assertSmsSendWindow, getSmsSendWindowLabel } from "../../lib/sms-send-window.js";
 import { isProductionSmsEnabled, sendReminders } from "../../lib/sms.js";
 import { getSupabase } from "../../lib/supabase.js";
@@ -50,7 +47,7 @@ export const handler = async () => {
     console.log(
       `[scheduled-reminders] ${eligible.length} due — sending ${batch.length} now` +
         (deferredByCap > 0 ? ` (${deferredByCap} deferred — per-run cap ${MAX_SCHEDULED_SMS_PER_RUN})` : "") +
-        `. Cooldown: ${SMS_COOLDOWN_DAYS} days between any SMS. Send window: ${getSmsSendWindowLabel()}.`,
+        `. Send window: ${getSmsSendWindowLabel()}.`,
     );
 
     if (batch.length === 0) {

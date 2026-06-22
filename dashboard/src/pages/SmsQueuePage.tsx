@@ -7,7 +7,7 @@ import {
   fetchSmsQueue,
 } from "../lib/api";
 
-type TabId = "due" | "upcoming" | "blocked";
+type TabId = "due" | "upcoming";
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -82,17 +82,7 @@ function QueueTable({ rows }: { rows: SmsQueueRow[] }) {
                   </span>
                 )}
               </td>
-              <td>
-                <div>{row.sendTiming}</div>
-                {row.blockReason && (
-                  <div className="muted" style={{ fontSize: "0.85rem" }}>{row.blockReason}</div>
-                )}
-                {row.lastSmsSentAt && (
-                  <div className="muted" style={{ fontSize: "0.85rem" }}>
-                    Last SMS: {formatDate(row.lastSmsSentAt)}
-                  </div>
-                )}
-              </td>
+              <td>{row.sendTiming}</td>
               <td style={{ maxWidth: "280px" }}>
                 <details>
                   <summary>Preview</summary>
@@ -133,7 +123,7 @@ export default function SmsQueuePage() {
   }, [load]);
 
   const filtered = useMemo(() => {
-    if (!preview) return { due: [], upcoming: [], blocked: [] };
+    if (!preview) return { due: [], upcoming: [] };
 
     const filterTrack = (rows: SmsQueueRow[]) =>
       trackFilter === "all" ? rows : rows.filter((row) => row.track === trackFilter);
@@ -141,12 +131,10 @@ export default function SmsQueuePage() {
     return {
       due: filterTrack(preview.dueNow),
       upcoming: filterTrack(preview.upcoming),
-      blocked: filterTrack(preview.blocked),
     };
   }, [preview, trackFilter]);
 
-  const activeRows =
-    tab === "due" ? filtered.due : tab === "upcoming" ? filtered.upcoming : filtered.blocked;
+  const activeRows = tab === "due" ? filtered.due : filtered.upcoming;
 
   if (loading) {
     return <div className="loading">Loading scheduled SMS…</div>;
@@ -180,17 +168,14 @@ export default function SmsQueuePage() {
           <div className="card">
             <div className="card-label">Upcoming</div>
             <div className="card-value">{preview.summary.upcoming}</div>
-            <div className="muted">Not at schedule day yet</div>
-          </div>
-          <div className="card">
-            <div className="card-label">Cooldown</div>
-            <div className="card-value">{preview.summary.blockedCooldown}</div>
-            <div className="muted">{preview.rules.cooldownDays}-day gap after any SMS</div>
+            <div className="muted">Waiting for schedule day</div>
           </div>
         </div>
 
         <p className="muted">
-          Sends run hourly, {preview.rules.sendWindow}, max {preview.rules.maxPerHour} per run.{" "}
+          Each client gets <strong>one step at a time</strong> — never the same step twice per detail.
+          After <strong>2 failed send attempts</strong> on a step, automated retries stop until their next
+          detail. Sends run hourly, {preview.rules.sendWindow}, max {preview.rules.maxPerHour} per run.{" "}
           {preview.rules.note}
         </p>
       </div>
@@ -211,13 +196,6 @@ export default function SmsQueuePage() {
               onClick={() => setTab("upcoming")}
             >
               Upcoming ({filtered.upcoming.length})
-            </button>
-            <button
-              type="button"
-              className={tab === "blocked" ? "btn" : "btn btn-secondary"}
-              onClick={() => setTab("blocked")}
-            >
-              Cooldown ({filtered.blocked.length})
             </button>
           </div>
           <TrackFilter value={trackFilter} onChange={setTrackFilter} />
