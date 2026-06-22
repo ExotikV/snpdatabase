@@ -402,6 +402,8 @@ export interface ManualSmsClient {
   lastServiceType: string | null;
   lastDetailDate: string | null;
   daysSince: number | null;
+  smsTrack: "maintenance" | "general" | "general_after_maintenance" | null;
+  smsTrackLabel: string;
 }
 
 export interface ManualSmsClientsResponse {

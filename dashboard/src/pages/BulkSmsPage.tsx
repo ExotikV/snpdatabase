@@ -8,6 +8,27 @@ import {
 import { getFirstName, renderMessageTemplate } from "../../../lib/message-template.js";
 import { buildBookingUrl } from "../../../lib/booking-url.js";
 
+type TrackFilter =
+  | "all"
+  | "maintenance"
+  | "general"
+  | "general_after_maintenance"
+  | "no_detail";
+
+const TRACK_FILTER_OPTIONS: { value: TrackFilter; label: string }[] = [
+  { value: "all", label: "All clients" },
+  { value: "maintenance", label: "Maintenance track" },
+  { value: "general", label: "General track" },
+  { value: "general_after_maintenance", label: "After maintenance miss" },
+  { value: "no_detail", label: "No completed detail" },
+];
+
+function matchesTrackFilter(client: ManualSmsClient, filter: TrackFilter) {
+  if (filter === "all") return true;
+  if (filter === "no_detail") return !client.smsTrack;
+  return client.smsTrack === filter;
+}
+
 const MESSAGE_PRESETS = [
   {
     id: "custom",
@@ -65,6 +86,7 @@ export default function BulkSmsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
   const [productionSendsEnabled, setProductionSendsEnabled] = useState(false);
+  const [trackFilter, setTrackFilter] = useState<TrackFilter>("all");
 
   const load = useCallback(async () => {
     setError(null);
@@ -90,10 +112,30 @@ export default function BulkSmsPage() {
     return () => window.clearTimeout(timeout);
   }, [load, search]);
 
+  const filteredClients = useMemo(
+    () => clients.filter((client) => matchesTrackFilter(client, trackFilter)),
+    [clients, trackFilter],
+  );
+
+  const trackCounts = useMemo(() => {
+    const counts = {
+      all: clients.length,
+      maintenance: 0,
+      general: 0,
+      general_after_maintenance: 0,
+      no_detail: 0,
+    };
+    for (const client of clients) {
+      if (!client.smsTrack) counts.no_detail += 1;
+      else if (client.smsTrack in counts) counts[client.smsTrack] += 1;
+    }
+    return counts;
+  }, [clients]);
+
   const previewClient = useMemo(() => {
-    const firstSelected = clients.find((client) => selectedIds.has(client.clientId));
-    return firstSelected ?? clients[0] ?? null;
-  }, [clients, selectedIds]);
+    const firstSelected = filteredClients.find((client) => selectedIds.has(client.clientId));
+    return firstSelected ?? filteredClients[0] ?? null;
+  }, [filteredClients, selectedIds]);
 
   const previewText = useMemo(
     () => buildPreview(messageBody, previewClient),
@@ -101,7 +143,8 @@ export default function BulkSmsPage() {
   );
 
   const allVisibleSelected =
-    clients.length > 0 && clients.every((client) => selectedIds.has(client.clientId));
+    filteredClients.length > 0 &&
+    filteredClients.every((client) => selectedIds.has(client.clientId));
 
   function handlePresetChange(nextPresetId: string) {
     setPresetId(nextPresetId);
@@ -124,7 +167,7 @@ export default function BulkSmsPage() {
     if (allVisibleSelected) {
       setSelectedIds((current) => {
         const next = new Set(current);
-        for (const client of clients) next.delete(client.clientId);
+        for (const client of filteredClients) next.delete(client.clientId);
         return next;
       });
       return;
@@ -132,7 +175,7 @@ export default function BulkSmsPage() {
 
     setSelectedIds((current) => {
       const next = new Set(current);
-      for (const client of clients) next.add(client.clientId);
+      for (const client of filteredClients) next.add(client.clientId);
       return next;
     });
   }
@@ -282,8 +325,20 @@ export default function BulkSmsPage() {
             onChange={(event) => setSearch(event.target.value)}
             style={{ flex: "1 1 200px", maxWidth: 320 }}
           />
+          <select
+            value={trackFilter}
+            onChange={(event) => setTrackFilter(event.target.value as TrackFilter)}
+            style={{ minWidth: 220 }}
+            aria-label="Filter by SMS track"
+          >
+            {TRACK_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({trackCounts[option.value]})
+              </option>
+            ))}
+          </select>
           <button type="button" className="btn btn-secondary" onClick={toggleSelectAllVisible}>
-            {allVisibleSelected ? "Clear visible" : "Select all visible"}
+            {allVisibleSelected ? "Clear filter selection" : "Select all in filter"}
           </button>
           <button
             type="button"
@@ -297,21 +352,26 @@ export default function BulkSmsPage() {
           </button>
         </div>
 
-        {clients.length === 0 ? (
-          <p className="muted">No clients with a phone number and SMS enabled.</p>
+        {filteredClients.length === 0 ? (
+          <p className="muted">
+            {clients.length === 0
+              ? "No clients with a phone number and SMS enabled."
+              : "No clients match this filter."}
+          </p>
         ) : (
           <table>
             <thead>
               <tr>
                 <th style={{ width: 40 }}></th>
                 <th>Client</th>
+                <th>SMS track</th>
                 <th>City</th>
                 <th>Phone</th>
                 <th>Last detail</th>
               </tr>
             </thead>
             <tbody>
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <tr key={client.clientId}>
                   <td>
                     <input
@@ -322,6 +382,7 @@ export default function BulkSmsPage() {
                     />
                   </td>
                   <td>{client.name ?? "—"}</td>
+                  <td>{client.smsTrackLabel}</td>
                   <td>{client.city ?? "—"}</td>
                   <td>{client.phone ?? "—"}</td>
                   <td>
