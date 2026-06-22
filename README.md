@@ -27,7 +27,6 @@ Copy `.env.example` to `.env` locally. In Netlify → Site configuration → Env
 | `TWILIO_ACCOUNT_SID` | Yes |
 | `TWILIO_AUTH_TOKEN` | Yes |
 | `TWILIO_PHONE_NUMBER` | Yes |
-| `DASHBOARD_PASSWORD` | Yes |
 | `BOOKING_WEBSITE_DOMAIN` | Yes (e.g. `www.snpdetailing.ca`) |
 | `SMS_TEST_MODE` | Optional (`true` routes all SMS to test number) |
 | `SMS_TEST_PHONE_NUMBER` | Optional |
@@ -40,7 +39,7 @@ npm run dashboard:install
 npm run dev
 ```
 
-Open http://localhost:8888 and sign in with `DASHBOARD_PASSWORD`.
+Open http://localhost:8888
 
 ### 4. Deploy to Netlify
 
