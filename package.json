@@ -1,0 +1,19 @@
+{
+  "name": "snpdatabase",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dashboard:install": "npm install --prefix dashboard",
+    "dashboard:dev": "npm run dev --prefix dashboard",
+    "dashboard:build": "npm run build --prefix dashboard",
+    "dev": "netlify dev",
+    "build": "npm run dashboard:build"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "twilio": "^5.5.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "^19.0.0"
+  }
+}

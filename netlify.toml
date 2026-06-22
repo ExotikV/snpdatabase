@@ -1,0 +1,16 @@
+[build]
+  command = "npm ci && npm run dashboard:install && npm run dashboard:build"
+  publish = "dashboard/dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["lib/**"]
+
+[functions."scheduled-reminders"]
+  schedule = "0 * * * *"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
