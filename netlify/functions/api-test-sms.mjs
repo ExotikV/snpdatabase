@@ -87,14 +87,18 @@ export const handler = withAuth(async (event) => {
 
   try {
     const body = parseJsonBody(event) ?? {};
-    const result = await sendTestReminderSms({
+    const supabase = getSupabase();
+    const result = await sendTestReminderSms(supabase, {
       messageBody: body.message_body,
       daysSince: body.days_since,
       phone: body.phone,
       track: body.track ?? "maintenance",
+      clientId: body.client_id,
       clientName: body.client_name,
       serviceType: body.service_type,
       lastDetailDate: body.last_detail_date,
+      preferredLanguage: body.preferred_language,
+      sequenceNumber: body.sequence_number ?? 0,
     });
 
     if (!result.ok) {

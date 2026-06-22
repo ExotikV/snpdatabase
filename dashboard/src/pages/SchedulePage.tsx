@@ -307,6 +307,11 @@ export default function SchedulePage() {
   }
 
   async function handleTestSms(step: ScheduleStep) {
+    if (!selectedClientId) {
+      setError("Select a client above before sending test SMS — this creates a real tracked booking link.");
+      return;
+    }
+
     setTestingStepId(step.id);
     setError(null);
     setMessage(null);
@@ -314,13 +319,18 @@ export default function SchedulePage() {
       const result = await sendTestSms({
         message_body: step.message_body ?? DEFAULT_MESSAGES[activeLanguage][activeScheduleTrack],
         track: activeScheduleTrack,
+        client_id: selectedClientId,
         client_name: testName,
         service_type: testService,
         last_detail_date: testLastDetailDate || undefined,
+        preferred_language: activeLanguage,
+        sequence_number: step.sequence_number,
         days_since: testDaysSince,
       });
       if (result.ok) {
-        setMessage(`Test SMS sent to ${result.to}.`);
+        setMessage(
+          `Test SMS sent to ${result.to}.${result.bookingUrl ? ` Link: ${result.bookingUrl}` : ""}`,
+        );
       } else {
         setError(result.reason ?? "Test SMS failed");
       }
@@ -413,8 +423,8 @@ export default function SchedulePage() {
       <div className="panel" style={{ marginBottom: "1.5rem" }}>
         <h2 style={{ marginTop: 0 }}>Test SMS settings</h2>
         <p className="help-text" style={{ marginBottom: "1rem" }}>
-          Choose a client to fill in sample data, or edit the fields manually. Used by every{" "}
-          <strong>Send test SMS</strong> button below
+          Choose a client to fill in sample data and generate a <strong>real</strong> tracked booking
+          link (saved to SMS log). Used by every <strong>Send test SMS</strong> button below
           {testPhone ? (
             <>
               {" "}

@@ -86,9 +86,12 @@ export function fetchTestPhone() {
 export function sendTestSms(payload: {
   message_body: string;
   track?: ScheduleTrack;
+  client_id?: string;
   client_name?: string;
   service_type?: string;
   last_detail_date?: string;
+  preferred_language?: "en" | "fr";
+  sequence_number?: number;
   days_since?: number;
   days_since_last_detail?: number;
 }) {
@@ -97,9 +100,12 @@ export function sendTestSms(payload: {
     body: JSON.stringify({
       message_body: payload.message_body,
       track: payload.track,
+      client_id: payload.client_id,
       client_name: payload.client_name,
       service_type: payload.service_type,
       last_detail_date: payload.last_detail_date,
+      preferred_language: payload.preferred_language,
+      sequence_number: payload.sequence_number,
       days_since: payload.days_since ?? payload.days_since_last_detail,
     }),
   });
@@ -196,6 +202,9 @@ export interface TestSmsResult {
   to?: string;
   body?: string;
   reason?: string;
+  smsLogId?: string;
+  shortRef?: string;
+  bookingUrl?: string;
 }
 
 export interface StatsResponse {
