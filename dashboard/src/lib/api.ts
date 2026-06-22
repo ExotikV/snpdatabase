@@ -176,6 +176,9 @@ export interface EnrollmentClient {
   smsTrack: "maintenance" | "general" | null;
   smsTrackLabel: string;
   optedOut: boolean;
+  optedOutAt: string | null;
+  optedOutSource: "manual" | "stop_reply" | null;
+  optedOutLabel: string | null;
   smsEnrolled: boolean;
   daysSinceLastDetail: number | null;
   daysSinceAnchor: number;

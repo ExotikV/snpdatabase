@@ -16,7 +16,7 @@ export default function EnrollmentsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [filter, setFilter] = useState<"all" | "maintenance" | "general" | "excluded">("all");
+  const [filter, setFilter] = useState<"all" | "maintenance" | "general" | "excluded" | "stop">("all");
   const [cityDrafts, setCityDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -42,6 +42,7 @@ export default function EnrollmentsPage() {
   const filtered = useMemo(() => {
     return clients.filter((client) => {
       if (filter === "excluded") return client.optedOut;
+      if (filter === "stop") return client.optedOut && client.optedOutSource === "stop_reply";
       if (filter === "maintenance") return client.smsTrack === "maintenance";
       if (filter === "general") return client.smsTrack === "general";
       return true;
@@ -145,12 +146,16 @@ export default function EnrollmentsPage() {
   return (
     <>
       <p className="muted" style={{ marginTop: 0 }}>
-        All clients with at least one completed detail receive SMS unless you exclude them below.
+        All clients with at least one completed detail receive SMS unless they unsubscribe or you
+        exclude them below. Every reminder includes{" "}
+        <strong>Reply STOP to unsubscribe</strong> — if someone texts STOP, they are removed
+        immediately and shown here as unsubscribed.
       </p>
       <p className="muted" style={{ marginTop: "0.5rem" }}>
         <strong>Maintenance</strong> track = service-area city + detail within 60 days.{" "}
         <strong>General</strong> track = everyone else with a past detail. Uncheck{" "}
-        <strong>Receive SMS</strong> to permanently exclude someone — saves immediately.
+        <strong>Receive SMS</strong> to exclude someone from the dashboard — saves immediately.
+        Re-checking the box re-enrolls them (including after a STOP reply).
       </p>
       {error && <div className="error-banner">{error}</div>}
       {notice && <div className="panel" style={{ background: "#ecfdf3" }}>{notice}</div>}
@@ -176,6 +181,7 @@ export default function EnrollmentsPage() {
               <option value="maintenance">Maintenance track</option>
               <option value="general">General track</option>
               <option value="excluded">Excluded from SMS</option>
+              <option value="stop">Unsubscribed via STOP</option>
             </select>
           </label>
         </div>
@@ -207,8 +213,19 @@ export default function EnrollmentsPage() {
                         handleToggleSmsExclusion(client.clientId, !e.target.checked)
                       }
                     />
-                    {client.optedOut ? "Excluded" : "Active"}
+                    {client.optedOut
+                      ? client.optedOutSource === "stop_reply"
+                        ? "Unsubscribed"
+                        : "Excluded"
+                      : "Active"}
                   </label>
+                  {client.optedOut && client.optedOutAt && (
+                    <div className="help-text" style={{ marginTop: 4 }}>
+                      {client.optedOutSource === "stop_reply"
+                        ? `Texted STOP · ${new Date(client.optedOutAt).toLocaleString()}`
+                        : `Excluded in dashboard · ${new Date(client.optedOutAt).toLocaleString()}`}
+                    </div>
+                  )}
                 </td>
                 <td>
                   <input
@@ -235,7 +252,16 @@ export default function EnrollmentsPage() {
                 </td>
                 <td>
                   {client.optedOut ? (
-                    <span className="badge badge-failed">Excluded from SMS</span>
+                    <span
+                      className={`badge ${client.optedOutSource === "stop_reply" ? "badge-failed" : "badge-pending"}`}
+                      title={
+                        client.optedOutAt
+                          ? `${client.optedOutLabel ?? "Excluded"} · ${new Date(client.optedOutAt).toLocaleString()}`
+                          : client.optedOutLabel ?? undefined
+                      }
+                    >
+                      {client.optedOutLabel ?? "Excluded from SMS"}
+                    </span>
                   ) : (
                     <span
                       className={`badge ${client.smsTrack === "maintenance" ? "badge-converted" : "badge-pending"}`}

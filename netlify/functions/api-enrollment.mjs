@@ -8,6 +8,7 @@ import {
 } from "../../lib/client-tracks.js";
 import { TRACK_LABELS } from "../../lib/tracks.js";
 import { LANGUAGE_LABELS, normalizeLanguage } from "../../lib/languages.js";
+import { getOptOutStatusLabel, OPT_OUT_SOURCES } from "../../lib/sms-opt-out.js";
 
 export const handler = withAuth(async (event) => {
   const supabase = getSupabase();
@@ -16,7 +17,7 @@ export const handler = withAuth(async (event) => {
     try {
       const { data: clients, error: clientsError } = await supabase
         .from("clients")
-        .select("id, name, phone, city, opted_out, created_at, preferred_language")
+        .select("id, name, phone, city, opted_out, opted_out_at, opted_out_source, created_at, preferred_language")
         .order("name", { ascending: true })
         .limit(500);
 
@@ -70,6 +71,9 @@ export const handler = withAuth(async (event) => {
             : null;
 
         const preferredLanguage = normalizeLanguage(client.preferred_language);
+        const optedOutLabel = client.opted_out
+          ? getOptOutStatusLabel(client.opted_out_source)
+          : null;
 
         return {
           clientId: client.id,
@@ -79,12 +83,15 @@ export const handler = withAuth(async (event) => {
           preferredLanguage,
           preferredLanguageLabel: LANGUAGE_LABELS[preferredLanguage],
           optedOut: client.opted_out,
+          optedOutAt: client.opted_out_at ?? null,
+          optedOutSource: client.opted_out_source ?? null,
+          optedOutLabel,
           cityEligible: isEligibleCity(client.city),
           maintenanceCityEligible: isEligibleCity(client.city),
           maintenanceEligible,
           smsTrack,
           smsTrackLabel: client.opted_out
-            ? "Excluded from SMS"
+            ? optedOutLabel
             : smsTrack
               ? TRACK_LABELS[smsTrack]
               : "No completed detail",
@@ -131,7 +138,15 @@ export const handler = withAuth(async (event) => {
       }
 
       if (body.excludedFromSms !== undefined) {
-        updatePayload.opted_out = Boolean(body.excludedFromSms);
+        const excluded = Boolean(body.excludedFromSms);
+        updatePayload.opted_out = excluded;
+        if (excluded) {
+          updatePayload.opted_out_at = new Date().toISOString();
+          updatePayload.opted_out_source = OPT_OUT_SOURCES.MANUAL;
+        } else {
+          updatePayload.opted_out_at = null;
+          updatePayload.opted_out_source = null;
+        }
       }
 
       const { error: updateError } = await supabase
