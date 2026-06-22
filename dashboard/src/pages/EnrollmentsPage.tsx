@@ -4,6 +4,7 @@ import {
   fetchEnrollments,
   syncFromSquare,
   updateClientCity,
+  updateClientLanguage,
 } from "../lib/api";
 
 export default function EnrollmentsPage() {
@@ -55,6 +56,21 @@ export default function EnrollmentsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update city");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleSaveLanguage(clientId: string, preferredLanguage: "en" | "fr") {
+    setBusyId(clientId);
+    setNotice(null);
+    setError(null);
+    try {
+      await updateClientLanguage(clientId, preferredLanguage);
+      setNotice("SMS language updated.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update language");
     } finally {
       setBusyId(null);
     }
@@ -124,6 +140,7 @@ export default function EnrollmentsPage() {
               <th>Phone</th>
               <th>City</th>
               <th>SMS track</th>
+              <th>SMS language</th>
               <th>Days since last detail</th>
             </tr>
           </thead>
@@ -165,6 +182,18 @@ export default function EnrollmentsPage() {
                       {client.smsTrackLabel}
                     </span>
                   )}
+                </td>
+                <td>
+                  <select
+                    value={client.preferredLanguage ?? "en"}
+                    disabled={busyId === client.clientId || client.optedOut}
+                    onChange={(e) =>
+                      handleSaveLanguage(client.clientId, e.target.value as "en" | "fr")
+                    }
+                  >
+                    <option value="en">English</option>
+                    <option value="fr">French</option>
+                  </select>
                 </td>
                 <td>{client.daysSinceLastDetail ?? "—"}</td>
               </tr>

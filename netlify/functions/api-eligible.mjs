@@ -17,6 +17,7 @@ export const handler = withAuth(async (event) => {
       phone: client.phone,
       city: client.city,
       track: client.track,
+      preferredLanguage: client.preferredLanguage,
       maintenanceEligible: client.maintenanceEligible,
       daysSince: client.daysSince,
       sequenceNumber: client.sequenceNumber,

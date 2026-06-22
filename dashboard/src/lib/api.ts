@@ -26,10 +26,15 @@ export function fetchSmsLog() {
   return apiFetch<{ smsLog: SmsLogRow[] }>("api-sms-log");
 }
 
-export function fetchSchedule(track: "maintenance" | "general" = "maintenance") {
-  return apiFetch<{ steps: ScheduleStep[]; migrationRequired?: boolean }>(
-    `api-schedule?track=${track}`,
-  );
+export function fetchSchedule(
+  track: "maintenance" | "general" = "maintenance",
+  language: "en" | "fr" = "en",
+) {
+  return apiFetch<{
+    steps: ScheduleStep[];
+    migrationRequired?: boolean;
+    languageMigrationRequired?: boolean;
+  }>(`api-schedule?track=${track}&language=${language}`);
 }
 
 export function saveSchedule(steps: ScheduleStep[]) {
@@ -39,7 +44,9 @@ export function saveSchedule(steps: ScheduleStep[]) {
   });
 }
 
-export function createScheduleStep(step: Partial<ScheduleStep> & { track?: string }) {
+export function createScheduleStep(
+  step: Partial<ScheduleStep> & { track?: string; language?: "en" | "fr" },
+) {
   return apiFetch<{ step: ScheduleStep }>("api-schedule", {
     method: "POST",
     body: JSON.stringify(step),
@@ -122,6 +129,13 @@ export function updateClientCity(clientId: string, city: string) {
   });
 }
 
+export function updateClientLanguage(clientId: string, preferredLanguage: "en" | "fr") {
+  return apiFetch<{ ok: boolean; preferred_language: "en" | "fr" }>("api-enrollment", {
+    method: "PATCH",
+    body: JSON.stringify({ clientId, preferredLanguage }),
+  });
+}
+
 export function syncFromSquare(customersOnly = false) {
   return apiFetch<SquareSyncResult>("api-square-sync", {
     method: "POST",
@@ -147,6 +161,8 @@ export interface EnrollmentClient {
   name: string | null;
   phone: string | null;
   city: string | null;
+  preferredLanguage: "en" | "fr";
+  preferredLanguageLabel: string;
   cityEligible: boolean;
   maintenanceEligible: boolean;
   smsTrack: "maintenance" | "general" | null;
@@ -205,6 +221,7 @@ export interface SmsLogRow {
 export interface ScheduleStep {
   id: string;
   track: "maintenance" | "general";
+  language: "en" | "fr";
   sequence_number: number;
   days_since_last_detail: number;
   active: boolean;
@@ -218,6 +235,7 @@ export interface EligibleClient {
   phone: string | null;
   city: string | null;
   track: "maintenance" | "general";
+  preferredLanguage: "en" | "fr";
   maintenanceEligible: boolean;
   daysSince: number;
   sequenceNumber: number;

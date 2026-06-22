@@ -11,15 +11,25 @@ import {
   saveSchedule,
   sendTestSms,
 } from "../lib/api";
-import { getFirstName, renderMessageTemplate, toDateInputValue } from "../../../lib/message-template.js";
+import { getFirstName, renderMessageTemplate, buildBookingUrl, toDateInputValue } from "../../../lib/message-template.js";
+import { getBookingSourceForTrack } from "../../../lib/tracks.js";
 
 type Track = "maintenance" | "general";
+type Language = "en" | "fr";
 
-const DEFAULT_MESSAGES: Record<Track, string> = {
-  maintenance:
-    "Hi {first_name}, it has been {days_since} days since your last {service} on {last_detail_date}. Book your maintenance detail here: {booking_url}",
-  general:
-    "Hi {first_name}, book your next SNP Detailing visit here: {booking_url}",
+const DEFAULT_MESSAGES: Record<Language, Record<Track, string>> = {
+  en: {
+    maintenance:
+      "Hi {first_name}, it has been {days_since} days since your last {service} on {last_detail_date}. Book your maintenance detail here: {booking_url}",
+    general:
+      "Hi {first_name}, book your next SNP Detailing visit here: {booking_url}",
+  },
+  fr: {
+    maintenance:
+      "Bonjour {prenom}, ca fait {jours_depuis} jours depuis votre dernier {detail} du {date_dernier_detail}. Reservez votre entretien ici : {lien_reservation}",
+    general:
+      "Bonjour {prenom}, reservez votre prochain rendez-vous SNP Detailing ici : {lien_reservation}",
+  },
 };
 
 const TRACK_DESCRIPTIONS: Record<Track, string> = {
@@ -38,6 +48,7 @@ function stepsSnapshot(steps: ScheduleStep[]) {
     steps.map((step) => ({
       id: step.id,
       track: step.track,
+      language: step.language,
       sequence_number: step.sequence_number,
       days_since_last_detail: step.days_since_last_detail,
       active: step.active,
@@ -68,12 +79,16 @@ function previewMessage(
     serviceType: vars.rawService,
     lastDetailDate: vars.lastDetailDate,
     daysSince: vars.daysSince,
-    bookingUrl: "https://example.com/book?ref=test",
+    bookingUrl: buildBookingUrl({
+      shortRef: "test01",
+      source: getBookingSourceForTrack("maintenance"),
+    }),
   });
 }
 
 export default function SchedulePage() {
   const [activeTrack, setActiveTrack] = useState<Track>("maintenance");
+  const [activeLanguage, setActiveLanguage] = useState<Language>("en");
   const [steps, setSteps] = useState<ScheduleStep[]>([]);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -89,6 +104,7 @@ export default function SchedulePage() {
   const [testDaysSince, setTestDaysSince] = useState(30);
   const [testingStepId, setTestingStepId] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
+  const [languageMigrationRequired, setLanguageMigrationRequired] = useState(false);
   const lastSavedSnapshotRef = useRef("");
   const saveVersionRef = useRef(0);
   const stepsRef = useRef(steps);
@@ -100,16 +116,22 @@ export default function SchedulePage() {
     setTestClients(data.clients);
   }, []);
 
-  const load = useCallback(async (track: Track) => {
+  const load = useCallback(async (track: Track, language: Language) => {
     setError(null);
     setSaveStatus("idle");
     setLoading(true);
     try {
-      const [scheduleData] = await Promise.all([fetchSchedule(track), loadTestClients("")]);
-      const loadedSteps = scheduleData.steps.filter((step) => step.track === track);
+      const [scheduleData] = await Promise.all([
+        fetchSchedule(track, language),
+        loadTestClients(""),
+      ]);
+      const loadedSteps = scheduleData.steps.filter(
+        (step) => step.track === track && (step.language ?? "en") === language,
+      );
       lastSavedSnapshotRef.current = stepsSnapshot(loadedSteps);
       setSteps(loadedSteps);
       setMigrationRequired(Boolean(scheduleData.migrationRequired));
+      setLanguageMigrationRequired(Boolean(scheduleData.languageMigrationRequired));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load schedule");
     } finally {
@@ -118,8 +140,8 @@ export default function SchedulePage() {
   }, [loadTestClients]);
 
   useEffect(() => {
-    load(activeTrack);
-  }, [activeTrack, load]);
+    load(activeTrack, activeLanguage);
+  }, [activeTrack, activeLanguage, load]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -131,7 +153,7 @@ export default function SchedulePage() {
   }, [clientSearch, loadTestClients]);
 
   useEffect(() => {
-    if (loading || migrationRequired || steps.length === 0) {
+    if (loading || migrationRequired || languageMigrationRequired || steps.length === 0) {
       return;
     }
 
@@ -168,7 +190,7 @@ export default function SchedulePage() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [steps, loading, migrationRequired]);
+  }, [steps, loading, migrationRequired, languageMigrationRequired]);
 
   useEffect(() => {
     if (saveStatus !== "saved") return;
@@ -205,8 +227,8 @@ export default function SchedulePage() {
 
   const testPreviewTemplate = useMemo(() => {
     const firstStep = steps.find((step) => step.message_body?.trim());
-    return firstStep?.message_body ?? DEFAULT_MESSAGES[activeTrack];
-  }, [steps, activeTrack]);
+    return firstStep?.message_body ?? DEFAULT_MESSAGES[activeLanguage][activeTrack];
+  }, [steps, activeTrack, activeLanguage]);
 
   const testPreview = useMemo(
     () =>
@@ -220,22 +242,26 @@ export default function SchedulePage() {
   );
 
   const saveStatusLabel = useMemo(() => {
-    if (migrationRequired) return "Run the database migration to enable saving";
+    if (migrationRequired) return "Run schema/reminder_schedule_track.sql to enable saving";
+    if (languageMigrationRequired) {
+      return "Run schema/reminder_schedule_language.sql for English/French sequences";
+    }
     if (saveStatus === "pending") return "Unsaved changes…";
     if (saveStatus === "saving") return "Saving…";
     if (saveStatus === "saved") return "Saved";
     if (saveStatus === "error") return "Save failed";
     return null;
-  }, [migrationRequired, saveStatus]);
+  }, [migrationRequired, languageMigrationRequired, saveStatus]);
 
   async function handleAddStep() {
     setError(null);
     try {
       const { step } = await createScheduleStep({
         track: activeTrack,
+        language: activeLanguage,
         days_since_last_detail: activeTrack === "maintenance" ? 30 : 60,
         active: true,
-        message_body: DEFAULT_MESSAGES[activeTrack],
+        message_body: DEFAULT_MESSAGES[activeLanguage][activeTrack],
       });
       setSteps((current) => {
         const next = [...current, step];
@@ -268,7 +294,7 @@ export default function SchedulePage() {
     setMessage(null);
     try {
       const result = await sendTestSms({
-        message_body: step.message_body ?? DEFAULT_MESSAGES[activeTrack],
+        message_body: step.message_body ?? DEFAULT_MESSAGES[activeLanguage][activeTrack],
         track: activeTrack,
         client_name: testName,
         service_type: testService,
@@ -306,6 +332,23 @@ export default function SchedulePage() {
         </button>
       </div>
 
+      <div className="inline-actions" style={{ marginBottom: "1rem" }}>
+        <button
+          type="button"
+          className={activeLanguage === "en" ? "btn" : "btn btn-secondary"}
+          onClick={() => setActiveLanguage("en")}
+        >
+          English SMS
+        </button>
+        <button
+          type="button"
+          className={activeLanguage === "fr" ? "btn" : "btn btn-secondary"}
+          onClick={() => setActiveLanguage("fr")}
+        >
+          French SMS
+        </button>
+      </div>
+
       <p className="muted" style={{ marginTop: 0 }}>
         {TRACK_DESCRIPTIONS[activeTrack]} All clients receive SMS on one track or the other —
         never both at once.
@@ -315,6 +358,13 @@ export default function SchedulePage() {
         <div className="error-banner" style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}>
           Database update needed: run <code>schema/reminder_schedule_track.sql</code> in the
           Supabase SQL Editor to enable saving both sequences.
+        </div>
+      )}
+
+      {languageMigrationRequired && (
+        <div className="error-banner" style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}>
+          Database update needed: run <code>schema/reminder_schedule_language.sql</code> and{" "}
+          <code>schema/client_language.sql</code> in Supabase to enable bilingual SMS.
         </div>
       )}
 
@@ -429,11 +479,14 @@ export default function SchedulePage() {
           </div>
 
           <p className="help-text" style={{ marginBottom: "1rem" }}>
-            English variables: {MESSAGE_VARIABLES_EN.join(", ")}
+            {activeLanguage === "fr" ? (
+              <>French variables: {MESSAGE_VARIABLES_FR.join(", ")}</>
+            ) : (
+              <>English variables: {MESSAGE_VARIABLES_EN.join(", ")}</>
+            )}
             <br />
-            French variables: {MESSAGE_VARIABLES_FR.join(", ")}
-            <br />
-            Changes save automatically.
+            Changes save automatically. Clients receive the sequence matching their website language (
+            <code>clients.preferred_language</code>).
           </p>
 
           {steps.length === 0 ? (

@@ -7,6 +7,7 @@ import {
   isMaintenanceProgramEligible,
 } from "../../lib/client-tracks.js";
 import { TRACK_LABELS } from "../../lib/tracks.js";
+import { LANGUAGE_LABELS, normalizeLanguage } from "../../lib/languages.js";
 
 export const handler = withAuth(async (event) => {
   const supabase = getSupabase();
@@ -15,7 +16,7 @@ export const handler = withAuth(async (event) => {
     try {
       const { data: clients, error: clientsError } = await supabase
         .from("clients")
-        .select("id, name, phone, city, opted_out, created_at")
+        .select("id, name, phone, city, opted_out, created_at, preferred_language")
         .order("name", { ascending: true })
         .limit(500);
 
@@ -66,11 +67,15 @@ export const handler = withAuth(async (event) => {
               hasCompletedDetail: Boolean(lastDetail),
             });
 
+        const preferredLanguage = normalizeLanguage(client.preferred_language);
+
         return {
           clientId: client.id,
           name: client.name,
           phone: client.phone,
           city: client.city,
+          preferredLanguage,
+          preferredLanguageLabel: LANGUAGE_LABELS[preferredLanguage],
           optedOut: client.opted_out,
           cityEligible: isEligibleCity(client.city),
           maintenanceCityEligible: isEligibleCity(client.city),
@@ -100,20 +105,29 @@ export const handler = withAuth(async (event) => {
         return jsonResponse({ error: "clientId required" }, 400);
       }
 
-      if (body.city === undefined) {
-        return jsonResponse({ error: "city required" }, 400);
+      if (body.city === undefined && body.preferredLanguage === undefined) {
+        return jsonResponse({ error: "city or preferredLanguage required" }, 400);
       }
 
-      const city = typeof body.city === "string" ? body.city.trim() : "";
+      const updatePayload = {};
+
+      if (body.city !== undefined) {
+        updatePayload.city = typeof body.city === "string" ? body.city.trim() : "";
+        if (!updatePayload.city) updatePayload.city = null;
+      }
+
+      if (body.preferredLanguage !== undefined) {
+        updatePayload.preferred_language = normalizeLanguage(body.preferredLanguage);
+      }
 
       const { error: updateError } = await supabase
         .from("clients")
-        .update({ city: city || null })
+        .update(updatePayload)
         .eq("id", body.clientId);
 
       if (updateError) throw updateError;
 
-      return jsonResponse({ ok: true, clientId: body.clientId, city: city || null });
+      return jsonResponse({ ok: true, clientId: body.clientId, ...updatePayload });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to update city";
       return jsonResponse({ error: message }, 500);

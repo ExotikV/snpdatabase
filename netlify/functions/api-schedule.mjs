@@ -4,7 +4,14 @@ import {
   getAllReminderScheduleSteps,
   getReminderSchedule,
 } from "../../lib/eligibility.js";
-import { formatScheduleError, hasTrackColumn } from "../../lib/schedule-db.js";
+import { LANGUAGES, normalizeLanguage, parseLanguage } from "../../lib/languages.js";
+import {
+  DEFAULT_GENERAL_STEPS_EN,
+  DEFAULT_GENERAL_STEPS_FR,
+  formatScheduleError,
+  hasLanguageColumn,
+  hasTrackColumn,
+} from "../../lib/schedule-db.js";
 import { TRACKS } from "../../lib/tracks.js";
 
 function parseTrack(value) {
@@ -12,16 +19,44 @@ function parseTrack(value) {
   return null;
 }
 
+function parseLanguageQuery(value) {
+  return parseLanguage(value) ?? LANGUAGES.EN;
+}
+
+function defaultMessage(track, language) {
+  if (track === TRACKS.GENERAL) {
+    return language === LANGUAGES.FR
+      ? DEFAULT_GENERAL_STEPS_FR[0].message_body
+      : DEFAULT_GENERAL_STEPS_EN[0].message_body;
+  }
+
+  return language === LANGUAGES.FR
+    ? "Bonjour {prenom}, ca fait {jours_depuis} jours depuis votre dernier {detail} du {date_dernier_detail}. Reservez votre entretien ici : {lien_reservation}"
+    : "Hi {first_name}, it has been {days_since} days since your last {service} on {last_detail_date}. Book your maintenance detail here: {booking_url}";
+}
+
 export const handler = withAuth(async (event) => {
   const supabase = getSupabase();
   const method = event.httpMethod;
   const queryTrack = parseTrack(event.queryStringParameters?.track);
+  const queryLanguage = parseLanguageQuery(event.queryStringParameters?.language);
 
   if (method === "GET") {
     try {
-      const steps = await getAllReminderScheduleSteps(supabase, queryTrack ?? undefined);
+      const steps = await getAllReminderScheduleSteps(
+        supabase,
+        queryTrack ?? undefined,
+        queryLanguage,
+      );
       const migrationRequired = !(await hasTrackColumn(supabase));
-      return jsonResponse({ steps, track: queryTrack, migrationRequired });
+      const languageMigrationRequired = !(await hasLanguageColumn(supabase));
+      return jsonResponse({
+        steps,
+        track: queryTrack,
+        language: queryLanguage,
+        migrationRequired,
+        languageMigrationRequired,
+      });
     } catch (error) {
       return jsonResponse({ error: formatScheduleError(error) }, 500);
     }
@@ -35,6 +70,17 @@ export const handler = withAuth(async (event) => {
             error:
               "Run schema/reminder_schedule_track.sql in Supabase SQL Editor before saving schedule changes.",
             migrationRequired: true,
+          },
+          400,
+        );
+      }
+
+      if (!(await hasLanguageColumn(supabase))) {
+        return jsonResponse(
+          {
+            error:
+              "Run schema/reminder_schedule_language.sql in Supabase SQL Editor before saving schedule changes.",
+            languageMigrationRequired: true,
           },
           400,
         );
@@ -60,6 +106,9 @@ export const handler = withAuth(async (event) => {
         if (step.track) {
           updatePayload.track = step.track;
         }
+        if (step.language) {
+          updatePayload.language = normalizeLanguage(step.language);
+        }
 
         const { error } = await supabase
           .from("reminder_schedule")
@@ -70,7 +119,8 @@ export const handler = withAuth(async (event) => {
       }
 
       const track = parseTrack(body.steps[0]?.track) ?? TRACKS.MAINTENANCE;
-      const updated = await getReminderSchedule(supabase, track);
+      const language = normalizeLanguage(body.steps[0]?.language ?? queryLanguage);
+      const updated = await getReminderSchedule(supabase, track, language);
       return jsonResponse({ ok: true, activeSteps: updated.length });
     } catch (error) {
       return jsonResponse({ error: formatScheduleError(error) }, 500);
@@ -90,25 +140,33 @@ export const handler = withAuth(async (event) => {
         );
       }
 
+      if (!(await hasLanguageColumn(supabase))) {
+        return jsonResponse(
+          {
+            error:
+              "Run schema/reminder_schedule_language.sql in Supabase SQL Editor before adding steps.",
+            languageMigrationRequired: true,
+          },
+          400,
+        );
+      }
+
       const body = parseJsonBody(event) ?? {};
       const track = parseTrack(body.track) ?? TRACKS.MAINTENANCE;
-      const existing = await getAllReminderScheduleSteps(supabase, track);
+      const language = normalizeLanguage(body.language ?? queryLanguage);
+      const existing = await getAllReminderScheduleSteps(supabase, track, language);
       const nextSequence =
         existing.reduce((max, step) => Math.max(max, step.sequence_number), 0) + 1;
-
-      const defaultMessage =
-        track === TRACKS.GENERAL
-          ? "Hi {first_name}, book your next SNP Detailing visit here: {booking_url}"
-          : "Hi {first_name}, it has been {days_since} days since your last {service} on {last_detail_date}. Book your maintenance detail here: {booking_url}";
 
       const { data, error } = await supabase
         .from("reminder_schedule")
         .insert({
           track,
+          language,
           sequence_number: body.sequence_number ?? nextSequence,
           days_since_last_detail: body.days_since_last_detail ?? 30,
           active: body.active ?? true,
-          message_body: body.message_body ?? defaultMessage,
+          message_body: body.message_body ?? defaultMessage(track, language),
         })
         .select("*")
         .single();
