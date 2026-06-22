@@ -7,9 +7,6 @@
   node_bundler = "esbuild"
   included_files = ["lib/**"]
 
-[functions."scheduled-reminders"]
-  schedule = "0 * * * *"
-
 [functions."scheduled-square-sync"]
   schedule = "0 6 * * *"
 

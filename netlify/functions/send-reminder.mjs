@@ -1,7 +1,7 @@
 import { withAuth, jsonResponse, parseJsonBody } from "../../lib/auth.js";
 import { getSupabase } from "../../lib/supabase.js";
 import { getEligibleClients } from "../../lib/eligibility.js";
-import { sendReminderToClient, sendReminders } from "../../lib/sms.js";
+import { isProductionSmsEnabled, sendReminderToClient, sendReminders } from "../../lib/sms.js";
 
 export const handler = withAuth(async (event) => {
   if (event.httpMethod !== "POST") {
@@ -11,6 +11,17 @@ export const handler = withAuth(async (event) => {
   try {
     const body = parseJsonBody(event) ?? {};
     const supabase = getSupabase();
+
+    if (!isProductionSmsEnabled()) {
+      return jsonResponse(
+        {
+          error:
+            "Production SMS sends are disabled. Use Test SMS on the Schedule page, or set SMS_PRODUCTION_SENDS_ENABLED=true when ready.",
+          productionSendsEnabled: false,
+        },
+        403,
+      );
+    }
 
     if (body.clientId) {
       const eligible = await getEligibleClients(supabase, {

@@ -61,11 +61,13 @@ export const handler = withAuth(async (event) => {
 
         const smsTrack = client.opted_out
           ? null
-          : getSmsTrackForClient({
-              city: client.city,
-              daysSinceLastDetail,
-              hasCompletedDetail: Boolean(lastDetail),
-            });
+          : lastDetail
+            ? getSmsTrackForClient({
+                city: client.city,
+                daysSinceLastDetail,
+                hasCompletedDetail: true,
+              })
+            : null;
 
         const preferredLanguage = normalizeLanguage(client.preferred_language);
 
@@ -81,10 +83,14 @@ export const handler = withAuth(async (event) => {
           maintenanceCityEligible: isEligibleCity(client.city),
           maintenanceEligible,
           smsTrack,
-          smsTrackLabel: smsTrack ? TRACK_LABELS[smsTrack] : "Opted out",
+          smsTrackLabel: client.opted_out
+            ? "Excluded from SMS"
+            : smsTrack
+              ? TRACK_LABELS[smsTrack]
+              : "No completed detail",
           daysSinceLastDetail,
           daysSinceAnchor,
-          smsEnrolled: !client.opted_out,
+          smsEnrolled: !client.opted_out && Boolean(lastDetail),
         };
       });
 
@@ -105,8 +111,12 @@ export const handler = withAuth(async (event) => {
         return jsonResponse({ error: "clientId required" }, 400);
       }
 
-      if (body.city === undefined && body.preferredLanguage === undefined) {
-        return jsonResponse({ error: "city or preferredLanguage required" }, 400);
+      if (
+        body.city === undefined &&
+        body.preferredLanguage === undefined &&
+        body.excludedFromSms === undefined
+      ) {
+        return jsonResponse({ error: "city, preferredLanguage, or excludedFromSms required" }, 400);
       }
 
       const updatePayload = {};
@@ -118,6 +128,10 @@ export const handler = withAuth(async (event) => {
 
       if (body.preferredLanguage !== undefined) {
         updatePayload.preferred_language = normalizeLanguage(body.preferredLanguage);
+      }
+
+      if (body.excludedFromSms !== undefined) {
+        updatePayload.opted_out = Boolean(body.excludedFromSms);
       }
 
       const { error: updateError } = await supabase

@@ -115,6 +115,7 @@ export interface TestSmsClient {
 
 export interface TestSmsOptionsResponse {
   testPhone: string;
+  productionSendsEnabled: boolean;
   clients: TestSmsClient[];
 }
 
@@ -133,6 +134,13 @@ export function updateClientLanguage(clientId: string, preferredLanguage: "en" |
   return apiFetch<{ ok: boolean; preferred_language: "en" | "fr" }>("api-enrollment", {
     method: "PATCH",
     body: JSON.stringify({ clientId, preferredLanguage }),
+  });
+}
+
+export function updateClientSmsExclusion(clientId: string, excludedFromSms: boolean) {
+  return apiFetch<{ ok: boolean; opted_out: boolean }>("api-enrollment", {
+    method: "PATCH",
+    body: JSON.stringify({ clientId, excludedFromSms }),
   });
 }
 

@@ -1,7 +1,7 @@
 import { jsonResponse, parseJsonBody, withAuth } from "../../lib/auth.js";
 import { toDateInputValue } from "../../lib/dates.js";
 import { getSupabase } from "../../lib/supabase.js";
-import { getTestPhoneNumber, sendTestReminderSms } from "../../lib/sms.js";
+import { getTestPhoneNumber, sendTestReminderSms, getSmsSafetyStatus } from "../../lib/sms.js";
 
 function daysBetween(earlier, later) {
   return Math.floor((later.getTime() - earlier.getTime()) / (24 * 60 * 60 * 1000));
@@ -74,7 +74,7 @@ export const handler = withAuth(async (event) => {
       const supabase = getSupabase();
       const search = event.queryStringParameters?.q ?? "";
       const clients = await loadTestClients(supabase, search);
-      return jsonResponse({ testPhone: getTestPhoneNumber(), clients });
+      return jsonResponse({ testPhone: getTestPhoneNumber(), clients, ...getSmsSafetyStatus() });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load test options";
       return jsonResponse({ error: message }, 500);

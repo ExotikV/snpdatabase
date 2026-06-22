@@ -5,6 +5,7 @@ import {
   syncFromSquare,
   updateClientCity,
   updateClientLanguage,
+  updateClientSmsExclusion,
 } from "../lib/api";
 
 export default function EnrollmentsPage() {
@@ -15,7 +16,7 @@ export default function EnrollmentsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [filter, setFilter] = useState<"all" | "maintenance" | "general">("all");
+  const [filter, setFilter] = useState<"all" | "maintenance" | "general" | "excluded">("all");
   const [cityDrafts, setCityDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -40,11 +41,54 @@ export default function EnrollmentsPage() {
 
   const filtered = useMemo(() => {
     return clients.filter((client) => {
+      if (filter === "excluded") return client.optedOut;
       if (filter === "maintenance") return client.smsTrack === "maintenance";
       if (filter === "general") return client.smsTrack === "general";
       return true;
     });
   }, [clients, filter]);
+
+  async function handleToggleSmsExclusion(clientId: string, excludedFromSms: boolean) {
+    setBusyId(clientId);
+    setNotice(null);
+    setError(null);
+
+    const previous = clients.find((client) => client.clientId === clientId);
+    setClients((current) =>
+      current.map((client) =>
+        client.clientId === clientId
+          ? {
+              ...client,
+              optedOut: excludedFromSms,
+              smsTrack: excludedFromSms ? null : client.smsTrack,
+              smsTrackLabel: excludedFromSms
+                ? "Excluded from SMS"
+                : client.smsTrack
+                  ? client.smsTrack === "maintenance"
+                    ? "Maintenance"
+                    : "General"
+                  : "No completed detail",
+              smsEnrolled: !excludedFromSms && client.daysSinceLastDetail != null,
+            }
+          : client,
+      ),
+    );
+
+    try {
+      await updateClientSmsExclusion(clientId, excludedFromSms);
+      setNotice(excludedFromSms ? "Client excluded from SMS." : "Client included in SMS again.");
+      await load();
+    } catch (err) {
+      if (previous) {
+        setClients((current) =>
+          current.map((client) => (client.clientId === clientId ? previous : client)),
+        );
+      }
+      setError(err instanceof Error ? err.message : "Failed to update SMS exclusion");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function handleSaveCity(clientId: string) {
     setBusyId(clientId);
@@ -101,11 +145,13 @@ export default function EnrollmentsPage() {
   return (
     <>
       <p className="muted" style={{ marginTop: 0 }}>
-        All clients receive SMS reminders unless opted out. <strong>Maintenance</strong> track =
-        service-area city + detail within 60 days. <strong>General</strong> track = regular detail
-        reminders for everyone else, in any city.
+        All clients with at least one completed detail receive SMS unless you exclude them below.
       </p>
-
+      <p className="muted" style={{ marginTop: "0.5rem" }}>
+        <strong>Maintenance</strong> track = service-area city + detail within 60 days.{" "}
+        <strong>General</strong> track = everyone else with a past detail. Uncheck{" "}
+        <strong>Receive SMS</strong> to permanently exclude someone — saves immediately.
+      </p>
       {error && <div className="error-banner">{error}</div>}
       {notice && <div className="panel" style={{ background: "#ecfdf3" }}>{notice}</div>}
 
@@ -129,6 +175,7 @@ export default function EnrollmentsPage() {
               <option value="all">All clients</option>
               <option value="maintenance">Maintenance track</option>
               <option value="general">General track</option>
+              <option value="excluded">Excluded from SMS</option>
             </select>
           </label>
         </div>
@@ -138,6 +185,7 @@ export default function EnrollmentsPage() {
             <tr>
               <th>Client</th>
               <th>Phone</th>
+              <th>Receive SMS</th>
               <th>City</th>
               <th>SMS track</th>
               <th>SMS language</th>
@@ -149,6 +197,19 @@ export default function EnrollmentsPage() {
               <tr key={client.clientId}>
                 <td>{client.name ?? "—"}</td>
                 <td>{client.phone ?? "—"}</td>
+                <td>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+                    <input
+                      type="checkbox"
+                      checked={!client.optedOut}
+                      disabled={busyId === client.clientId}
+                      onChange={(e) =>
+                        handleToggleSmsExclusion(client.clientId, !e.target.checked)
+                      }
+                    />
+                    {client.optedOut ? "Excluded" : "Active"}
+                  </label>
+                </td>
                 <td>
                   <input
                     type="text"
@@ -174,7 +235,7 @@ export default function EnrollmentsPage() {
                 </td>
                 <td>
                   {client.optedOut ? (
-                    <span className="badge badge-failed">Opted out</span>
+                    <span className="badge badge-failed">Excluded from SMS</span>
                   ) : (
                     <span
                       className={`badge ${client.smsTrack === "maintenance" ? "badge-converted" : "badge-pending"}`}

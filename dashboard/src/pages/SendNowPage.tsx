@@ -3,6 +3,7 @@ import {
   EligibleClient,
   REFRESH_MS,
   fetchEligible,
+  fetchTestSmsOptions,
   sendReminder,
 } from "../lib/api";
 
@@ -11,12 +12,14 @@ function EligibleTable({
   rows,
   sendingId,
   sendingAll,
+  productionDisabled,
   onSend,
 }: {
   title: string;
   rows: EligibleClient[];
   sendingId: string | null;
   sendingAll: boolean;
+  productionDisabled: boolean;
   onSend: (clientId: string) => void;
 }) {
   if (rows.length === 0) {
@@ -59,7 +62,9 @@ function EligibleTable({
                 <button
                   type="button"
                   className="btn"
-                  disabled={sendingId === client.clientId || sendingAll}
+                  disabled={
+                    productionDisabled || sendingId === client.clientId || sendingAll
+                  }
                   onClick={() => onSend(client.clientId)}
                 >
                   {sendingId === client.clientId ? "Sending…" : "Send now"}
@@ -81,13 +86,18 @@ export default function SendNowPage() {
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendingAll, setSendingAll] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [productionSendsEnabled, setProductionSendsEnabled] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const data = await fetchEligible();
-      setMaintenance(data.maintenance);
-      setGeneral(data.general);
+      const [eligibleData, testOptions] = await Promise.all([
+        fetchEligible(),
+        fetchTestSmsOptions(),
+      ]);
+      setMaintenance(eligibleData.maintenance);
+      setGeneral(eligibleData.general);
+      setProductionSendsEnabled(testOptions.productionSendsEnabled);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load eligible clients");
     } finally {
@@ -147,18 +157,26 @@ export default function SendNowPage() {
     <>
       <p className="muted" style={{ marginTop: 0 }}>
         <strong>Maintenance</strong> reminders are limited to your service-area cities (detail
-        within 60 days). <strong>General</strong> regular-detail reminders go to all other
-        clients — any city, no location restriction.
+        within 60 days). <strong>General</strong> reminders go to past clients outside that window.
+        Clients with no completed detail are not eligible.
       </p>
 
       {error && <div className="error-banner">{error}</div>}
       {notice && <div className="panel" style={{ background: "#ecfdf3" }}>{notice}</div>}
 
+      {!productionSendsEnabled && (
+        <div className="error-banner" style={{ background: "#eff6ff", color: "#1e40af", borderColor: "#bfdbfe" }}>
+          Production SMS is <strong>off</strong>. Clients will not receive reminders from Send now or
+          the hourly job. Use <strong>Send test SMS</strong> on the Schedule page to text your test
+          number only.
+        </div>
+      )}
+
       <div className="inline-actions" style={{ marginBottom: "1rem" }}>
         <button
           type="button"
           className="btn"
-          disabled={totalDue === 0 || sendingAll}
+          disabled={!productionSendsEnabled || totalDue === 0 || sendingAll}
           onClick={handleSendAll}
         >
           {sendingAll ? "Sending…" : `Send all due (${totalDue})`}
@@ -170,6 +188,7 @@ export default function SendNowPage() {
         rows={maintenance}
         sendingId={sendingId}
         sendingAll={sendingAll}
+        productionDisabled={!productionSendsEnabled}
         onSend={handleSend}
       />
 
@@ -178,6 +197,7 @@ export default function SendNowPage() {
         rows={general}
         sendingId={sendingId}
         sendingAll={sendingAll}
+        productionDisabled={!productionSendsEnabled}
         onSend={handleSend}
       />
     </>

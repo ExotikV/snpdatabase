@@ -36,7 +36,7 @@ const TRACK_DESCRIPTIONS: Record<Track, string> = {
   maintenance:
     "Maintenance detail — service-area cities only, and last detail within 60 days.",
   general:
-    "Regular detail — all cities. Anyone not on the maintenance track (any location, past the 60-day window, or no recent detail).",
+    "Regular detail — past clients only (must have a completed detail). All cities once past the 60-day maintenance window.",
 };
 
 const AUTO_SAVE_DELAY_MS = 800;
