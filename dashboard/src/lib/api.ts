@@ -117,10 +117,14 @@ export function fetchManualSmsClients(search = "") {
   return apiFetch<ManualSmsClientsResponse>(`api-manual-sms${query}`);
 }
 
-export function sendManualBulkSms(messageBody: string, clientIds: string[]) {
+export function sendManualBulkSms(
+  messageBodyEn: string,
+  messageBodyFr: string,
+  clientIds: string[],
+) {
   return apiFetch<ManualBulkSmsResult>("api-manual-sms", {
     method: "POST",
-    body: JSON.stringify({ messageBody, clientIds }),
+    body: JSON.stringify({ messageBodyEn, messageBodyFr, clientIds }),
   });
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MESSAGE_VARIABLES_EN,
+  MESSAGE_VARIABLES_FR,
   ManualSmsClient,
   fetchManualSmsClients,
   sendManualBulkSms,
@@ -33,39 +34,60 @@ const MESSAGE_PRESETS = [
   {
     id: "custom",
     label: "Custom message",
-    body: "",
+    en: "",
+    fr: "",
   },
   {
     id: "book-next",
     label: "Book your next visit",
-    body: "Hi {first_name}, we'd love to see you again at SNP Detailing. Book your next appointment here: {booking_url}",
+    en: "Hi {first_name}, we'd love to see you again at SNP Detailing. Book your next appointment here: {booking_url}",
+    fr: "Bonjour {prenom}, nous aimerions vous revoir chez SNP Detailing. Réservez votre prochain rendez-vous ici : {lien_reservation}",
   },
   {
     id: "seasonal",
     label: "Seasonal reminder",
-    body: "Hi {first_name}, it's a great time to refresh your vehicle. Book with SNP Detailing: {booking_url}",
+    en: "Hi {first_name}, it's a great time to refresh your vehicle. Book with SNP Detailing: {booking_url}",
+    fr: "Bonjour {prenom}, c'est le bon moment pour rafraîchir votre véhicule. Réservez avec SNP Detailing : {lien_reservation}",
   },
   {
     id: "maintenance-nudge",
     label: "Maintenance nudge",
-    body: "Hi {first_name}, it's been {days_since} days since your last {service}. Book your maintenance detail: {booking_url}",
+    en: "Hi {first_name}, it's been {days_since} days since your last {service}. Book your maintenance detail: {booking_url}",
+    fr: "Bonjour {prenom}, cela fait {jours_depuis} jours depuis votre dernier {detail}. Réservez votre entretien : {lien_reservation}",
   },
 ];
 
-function buildPreview(messageBody: string, client: ManualSmsClient | null) {
-  if (!messageBody.trim()) return "";
+type MessageLanguage = "en" | "fr";
+
+function pickMessageForLanguage(messageEn: string, messageFr: string, language: MessageLanguage) {
+  if (language === "fr") return messageFr.trim() || messageEn.trim();
+  return messageEn.trim() || messageFr.trim();
+}
+
+function buildPreview(
+  messageEn: string,
+  messageFr: string,
+  client: ManualSmsClient | null,
+  previewLanguage?: MessageLanguage,
+) {
+  const language = previewLanguage ?? client?.preferredLanguage ?? "en";
+  const template = pickMessageForLanguage(messageEn, messageFr, language);
+  if (!template) return "";
+
   const sample = client ?? {
     clientId: "",
-    name: "Alex Martin",
+    name: language === "fr" ? "Alex Martin" : "Alex Martin",
     phone: null,
     city: null,
-    preferredLanguage: "en" as const,
+    preferredLanguage: language,
     lastServiceType: "Interior + Exterior",
     lastDetailDate: "2026-05-01",
     daysSince: 45,
+    smsTrack: null,
+    smsTrackLabel: "No completed detail",
   };
 
-  return renderMessageTemplate(messageBody, {
+  return renderMessageTemplate(template, {
     name: sample.name ?? "",
     firstName: getFirstName(sample.name),
     serviceType: sample.lastServiceType,
@@ -82,7 +104,9 @@ export default function BulkSmsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [presetId, setPresetId] = useState(MESSAGE_PRESETS[1].id);
-  const [messageBody, setMessageBody] = useState(MESSAGE_PRESETS[1].body);
+  const [messageBodyEn, setMessageBodyEn] = useState(MESSAGE_PRESETS[1].en);
+  const [messageBodyFr, setMessageBodyFr] = useState(MESSAGE_PRESETS[1].fr);
+  const [activeMessageLanguage, setActiveMessageLanguage] = useState<MessageLanguage>("en");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
   const [productionSendsEnabled, setProductionSendsEnabled] = useState(false);
@@ -132,14 +156,31 @@ export default function BulkSmsPage() {
     return counts;
   }, [clients]);
 
+  const selectedClients = useMemo(
+    () => clients.filter((client) => selectedIds.has(client.clientId)),
+    [clients, selectedIds],
+  );
+
+  const selectedLanguageCounts = useMemo(() => {
+    let en = 0;
+    let fr = 0;
+    for (const client of selectedClients) {
+      if (client.preferredLanguage === "fr") fr += 1;
+      else en += 1;
+    }
+    return { en, fr };
+  }, [selectedClients]);
+
   const previewClient = useMemo(() => {
     const firstSelected = filteredClients.find((client) => selectedIds.has(client.clientId));
     return firstSelected ?? filteredClients[0] ?? null;
   }, [filteredClients, selectedIds]);
 
+  const previewLanguage = previewClient?.preferredLanguage ?? activeMessageLanguage;
+
   const previewText = useMemo(
-    () => buildPreview(messageBody, previewClient),
-    [messageBody, previewClient],
+    () => buildPreview(messageBodyEn, messageBodyFr, previewClient, previewLanguage),
+    [messageBodyEn, messageBodyFr, previewClient, previewLanguage],
   );
 
   const allVisibleSelected =
@@ -150,8 +191,17 @@ export default function BulkSmsPage() {
     setPresetId(nextPresetId);
     const preset = MESSAGE_PRESETS.find((row) => row.id === nextPresetId);
     if (preset && preset.id !== "custom") {
-      setMessageBody(preset.body);
+      setMessageBodyEn(preset.en);
+      setMessageBodyFr(preset.fr);
     }
+  }
+
+  const activeMessageBody = activeMessageLanguage === "fr" ? messageBodyFr : messageBodyEn;
+
+  function setActiveMessageBody(value: string) {
+    setPresetId("custom");
+    if (activeMessageLanguage === "fr") setMessageBodyFr(value);
+    else setMessageBodyEn(value);
   }
 
   function toggleClient(clientId: string) {
@@ -181,8 +231,8 @@ export default function BulkSmsPage() {
   }
 
   async function handleSend() {
-    if (!messageBody.trim()) {
-      setError("Write a message before sending.");
+    if (!messageBodyEn.trim() && !messageBodyFr.trim()) {
+      setError("Write at least one message (English or French) before sending.");
       return;
     }
 
@@ -191,8 +241,18 @@ export default function BulkSmsPage() {
       return;
     }
 
+    const { en, fr } = selectedLanguageCounts;
+    const languageNote =
+      en > 0 && fr > 0
+        ? ` (${en} English, ${fr} French)`
+        : fr > 0
+          ? " (French)"
+          : en > 0
+            ? " (English)"
+            : "";
+
     const confirmed = window.confirm(
-      `Send this message to ${selectedIds.size} client${selectedIds.size === 1 ? "" : "s"}?`,
+      `Send to ${selectedIds.size} client${selectedIds.size === 1 ? "" : "s"}${languageNote}? Each person receives the message in their preferred language.`,
     );
     if (!confirmed) return;
 
@@ -201,7 +261,7 @@ export default function BulkSmsPage() {
     setNotice(null);
 
     try {
-      const result = await sendManualBulkSms(messageBody, [...selectedIds]);
+      const result = await sendManualBulkSms(messageBodyEn, messageBodyFr, [...selectedIds]);
       setNotice(
         `Sent ${result.sentCount} of ${result.requested}. Failed: ${result.failedCount}. Skipped: ${result.skippedCount}.`,
       );
@@ -248,12 +308,28 @@ export default function BulkSmsPage() {
       <h2 className="section-title">Bulk manual SMS</h2>
       <p className="muted section-intro">
         One-off messages to selected clients — not tied to the automated reminder schedule. Each
-        send is logged as <strong>Manual</strong> in the SMS log. STOP opt-outs are excluded
-        automatically.
+        client receives the <strong>English or French</strong> message based on their language
+        preference on file. Each send is logged as <strong>Manual</strong> in the SMS log.
       </p>
 
       <div className="panel" style={{ marginBottom: "1.25rem" }}>
         <h2 style={{ marginTop: 0 }}>Message</h2>
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+          <button
+            type="button"
+            className={activeMessageLanguage === "en" ? "btn" : "btn btn-secondary"}
+            onClick={() => setActiveMessageLanguage("en")}
+          >
+            English SMS
+          </button>
+          <button
+            type="button"
+            className={activeMessageLanguage === "fr" ? "btn" : "btn btn-secondary"}
+            onClick={() => setActiveMessageLanguage("fr")}
+          >
+            French SMS
+          </button>
+        </div>
         <label className="muted" htmlFor="bulk-sms-preset">
           Template
         </label>
@@ -271,27 +347,35 @@ export default function BulkSmsPage() {
         </select>
 
         <label className="muted" htmlFor="bulk-sms-body">
-          Message text
+          {activeMessageLanguage === "fr" ? "French message" : "English message"}
         </label>
         <textarea
           id="bulk-sms-body"
-          value={messageBody}
-          onChange={(event) => {
-            setPresetId("custom");
-            setMessageBody(event.target.value);
-          }}
+          value={activeMessageBody}
+          onChange={(event) => setActiveMessageBody(event.target.value)}
           rows={6}
           style={{ width: "100%", marginTop: "0.35rem" }}
-          placeholder="Hi {first_name}, ..."
+          placeholder={
+            activeMessageLanguage === "fr"
+              ? "Bonjour {prenom}, ..."
+              : "Hi {first_name}, ..."
+          }
         />
 
         <p className="muted" style={{ marginTop: "0.75rem", marginBottom: 0 }}>
-          Variables: {MESSAGE_VARIABLES_EN.join(", ")}. Opt-out footer is appended automatically.
+          English variables: {MESSAGE_VARIABLES_EN.join(", ")}. French variables:{" "}
+          {MESSAGE_VARIABLES_FR.join(", ")}. Opt-out footer is appended in the client&apos;s
+          language.
         </p>
 
         {previewText && (
           <div style={{ marginTop: "1rem" }}>
-            <div className="muted">Preview{previewClient ? ` (${previewClient.name})` : ""}</div>
+            <div className="muted">
+              Preview
+              {previewClient
+                ? ` (${previewClient.name}, ${previewClient.preferredLanguage === "fr" ? "French" : "English"})`
+                : ""}
+            </div>
             <pre
               style={{
                 whiteSpace: "pre-wrap",
@@ -364,6 +448,7 @@ export default function BulkSmsPage() {
               <tr>
                 <th style={{ width: 40 }}></th>
                 <th>Client</th>
+                <th>Language</th>
                 <th>SMS track</th>
                 <th>City</th>
                 <th>Phone</th>
@@ -382,6 +467,7 @@ export default function BulkSmsPage() {
                     />
                   </td>
                   <td>{client.name ?? "—"}</td>
+                  <td>{client.preferredLanguage === "fr" ? "French" : "English"}</td>
                   <td>{client.smsTrackLabel}</td>
                   <td>{client.city ?? "—"}</td>
                   <td>{client.phone ?? "—"}</td>

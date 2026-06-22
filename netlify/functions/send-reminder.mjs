@@ -1,6 +1,7 @@
 import { withAuth, jsonResponse, parseJsonBody } from "../../lib/auth.js";
 import { getSupabase } from "../../lib/supabase.js";
 import { getEligibleClients } from "../../lib/eligibility.js";
+import { assertClientCanReceiveSms } from "../../lib/sms-opt-out.js";
 import { isProductionSmsEnabled, sendReminderToClient, sendReminders } from "../../lib/sms.js";
 
 export const handler = withAuth(async (event) => {
@@ -24,6 +25,11 @@ export const handler = withAuth(async (event) => {
     }
 
     if (body.clientId) {
+      const smsGate = await assertClientCanReceiveSms(supabase, body.clientId);
+      if (!smsGate.ok) {
+        return jsonResponse({ error: smsGate.reason }, smsGate.optedOut ? 403 : 400);
+      }
+
       const eligible = await getEligibleClients(supabase, {
         clientId: body.clientId,
         track: body.track,

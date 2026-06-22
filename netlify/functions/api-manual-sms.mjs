@@ -30,11 +30,20 @@ export const handler = withAuth(async (event) => {
 
   try {
     const body = parseJsonBody(event) ?? {};
-    const messageBody = typeof body.messageBody === "string" ? body.messageBody.trim() : "";
+    const messageBodyEn =
+      typeof body.messageBodyEn === "string"
+        ? body.messageBodyEn.trim()
+        : typeof body.messageBody === "string"
+          ? body.messageBody.trim()
+          : "";
+    const messageBodyFr =
+      typeof body.messageBodyFr === "string" ? body.messageBodyFr.trim() : "";
 
-    if (!messageBody) {
-      return jsonResponse({ error: "messageBody is required" }, 400);
+    if (!messageBodyEn && !messageBodyFr) {
+      return jsonResponse({ error: "messageBodyEn or messageBodyFr is required" }, 400);
     }
+
+    const messages = { en: messageBodyEn, fr: messageBodyFr };
 
     if (!Array.isArray(body.clientIds) || body.clientIds.length === 0) {
       return jsonResponse({ error: "clientIds must be a non-empty array" }, 400);
@@ -56,7 +65,7 @@ export const handler = withAuth(async (event) => {
       return jsonResponse({ error: "No eligible clients found for the selected IDs" }, 400);
     }
 
-    const { sent, failed } = await sendManualSmsBulk(supabase, clients, messageBody);
+    const { sent, failed } = await sendManualSmsBulk(supabase, clients, messages);
 
     return jsonResponse({
       ok: true,
