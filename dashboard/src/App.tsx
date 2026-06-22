@@ -7,6 +7,7 @@ import LoginPage from "./pages/LoginPage";
 import OverviewPage from "./pages/OverviewPage";
 import SchedulePage from "./pages/SchedulePage";
 import SendNowPage from "./pages/SendNowPage";
+import SmsLogPage from "./pages/SmsLogPage";
 import SmsSubscribersPage from "./pages/SmsSubscribersPage";
 import { clearToken, getToken } from "./lib/api";
 

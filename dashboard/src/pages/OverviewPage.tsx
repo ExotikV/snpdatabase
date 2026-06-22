@@ -124,29 +124,33 @@ export default function OverviewPage() {
             </div>
           </div>
 
-          <h2 className="section-title">SMS subscribers</h2>
-          <p className="muted section-intro">
-            Clients who texted <strong>STOP</strong> are marked unsubscribed automatically.{" "}
-            <Link to="/sms-subscribers">View full list</Link>
-          </p>
-          <div className="card-grid">
-            <div className="card">
-              <div className="card-label">Receiving SMS</div>
-              <div className="card-value">{stats.smsSubscribers.receiving}</div>
-            </div>
-            <div className="card">
-              <div className="card-label">Unsubscribed (STOP)</div>
-              <div className="card-value">{stats.smsSubscribers.unsubscribedStop}</div>
-            </div>
-            <div className="card">
-              <div className="card-label">Excluded manually</div>
-              <div className="card-value">{stats.smsSubscribers.excludedManual}</div>
-            </div>
-            <div className="card">
-              <div className="card-label">Total clients</div>
-              <div className="card-value">{stats.smsSubscribers.total}</div>
-            </div>
-          </div>
+          {stats.smsSubscribers && (
+            <>
+              <h2 className="section-title">SMS subscribers</h2>
+              <p className="muted section-intro">
+                Clients who texted <strong>STOP</strong> are marked unsubscribed automatically.{" "}
+                <Link to="/sms-subscribers">View full list</Link>
+              </p>
+              <div className="card-grid">
+                <div className="card">
+                  <div className="card-label">Receiving SMS</div>
+                  <div className="card-value">{stats.smsSubscribers.receiving}</div>
+                </div>
+                <div className="card">
+                  <div className="card-label">Unsubscribed (STOP)</div>
+                  <div className="card-value">{stats.smsSubscribers.unsubscribedStop}</div>
+                </div>
+                <div className="card">
+                  <div className="card-label">Excluded manually</div>
+                  <div className="card-value">{stats.smsSubscribers.excludedManual}</div>
+                </div>
+                <div className="card">
+                  <div className="card-label">Total clients</div>
+                  <div className="card-value">{stats.smsSubscribers.total}</div>
+                </div>
+              </div>
+            </>
+          )}
 
           <h2 className="section-title">SMS &amp; QR performance</h2>
           <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
