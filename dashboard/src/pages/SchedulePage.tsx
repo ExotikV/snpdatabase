@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MESSAGE_VARIABLES,
   ScheduleStep,
@@ -28,6 +28,23 @@ const TRACK_DESCRIPTIONS: Record<Track, string> = {
   general:
     "Regular detail — all cities. Anyone not on the maintenance track (any location, past the 60-day window, or no recent detail).",
 };
+
+const AUTO_SAVE_DELAY_MS = 800;
+
+type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+
+function stepsSnapshot(steps: ScheduleStep[]) {
+  return JSON.stringify(
+    steps.map((step) => ({
+      id: step.id,
+      track: step.track,
+      sequence_number: step.sequence_number,
+      days_since_last_detail: step.days_since_last_detail,
+      active: step.active,
+      message_body: step.message_body,
+    })),
+  );
+}
 
 function daysSinceDate(dateValue: string) {
   if (!dateValue) return 30;
@@ -60,7 +77,7 @@ export default function SchedulePage() {
   const [activeTrack, setActiveTrack] = useState<Track>("maintenance");
   const [steps, setSteps] = useState<ScheduleStep[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [testPhone, setTestPhone] = useState<string | null>(null);
@@ -73,6 +90,10 @@ export default function SchedulePage() {
   const [testDaysSince, setTestDaysSince] = useState(30);
   const [testingStepId, setTestingStepId] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
+  const lastSavedSnapshotRef = useRef("");
+  const saveVersionRef = useRef(0);
+  const stepsRef = useRef(steps);
+  stepsRef.current = steps;
 
   const loadTestClients = useCallback(async (search: string) => {
     const data = await fetchTestSmsOptions(search);
@@ -82,10 +103,13 @@ export default function SchedulePage() {
 
   const load = useCallback(async (track: Track) => {
     setError(null);
+    setSaveStatus("idle");
     setLoading(true);
     try {
       const [scheduleData] = await Promise.all([fetchSchedule(track), loadTestClients("")]);
-      setSteps(scheduleData.steps.filter((step) => step.track === track));
+      const loadedSteps = scheduleData.steps.filter((step) => step.track === track);
+      lastSavedSnapshotRef.current = stepsSnapshot(loadedSteps);
+      setSteps(loadedSteps);
       setMigrationRequired(Boolean(scheduleData.migrationRequired));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load schedule");
@@ -106,6 +130,52 @@ export default function SchedulePage() {
     }, 300);
     return () => window.clearTimeout(timeout);
   }, [clientSearch, loadTestClients]);
+
+  useEffect(() => {
+    if (loading || migrationRequired || steps.length === 0) {
+      return;
+    }
+
+    const snapshot = stepsSnapshot(steps);
+    if (snapshot === lastSavedSnapshotRef.current) {
+      return;
+    }
+
+    const version = ++saveVersionRef.current;
+    setSaveStatus("pending");
+
+    const timeoutId = window.setTimeout(() => {
+      const stepsToSave = stepsRef.current;
+      const snapshotToSave = stepsSnapshot(stepsToSave);
+
+      void (async () => {
+        setSaveStatus("saving");
+        try {
+          await saveSchedule(stepsToSave);
+          if (saveVersionRef.current === version) {
+            lastSavedSnapshotRef.current = snapshotToSave;
+            setSaveStatus("saved");
+            setError(null);
+          }
+        } catch (err) {
+          if (saveVersionRef.current === version) {
+            setSaveStatus("error");
+            setError(err instanceof Error ? err.message : "Failed to save");
+          }
+        }
+      })();
+    }, AUTO_SAVE_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [steps, loading, migrationRequired]);
+
+  useEffect(() => {
+    if (saveStatus !== "saved") return;
+    const timeoutId = window.setTimeout(() => setSaveStatus("idle"), 2000);
+    return () => window.clearTimeout(timeoutId);
+  }, [saveStatus]);
 
   function updateStep(id: string, patch: Partial<ScheduleStep>) {
     setSteps((current) => current.map((step) => (step.id === id ? { ...step, ...patch } : step)));
@@ -150,20 +220,14 @@ export default function SchedulePage() {
     [testPreviewTemplate, testName, testService, testLastDetailDate, testDaysSince],
   );
 
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-    try {
-      await saveSchedule(steps);
-      setMessage("Schedule saved.");
-      await load(activeTrack);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const saveStatusLabel = useMemo(() => {
+    if (migrationRequired) return "Run the database migration to enable saving";
+    if (saveStatus === "pending") return "Unsaved changes…";
+    if (saveStatus === "saving") return "Saving…";
+    if (saveStatus === "saved") return "Saved";
+    if (saveStatus === "error") return "Save failed";
+    return null;
+  }, [migrationRequired, saveStatus]);
 
   async function handleAddStep() {
     setError(null);
@@ -174,7 +238,11 @@ export default function SchedulePage() {
         active: true,
         message_body: DEFAULT_MESSAGES[activeTrack],
       });
-      setSteps((current) => [...current, step]);
+      setSteps((current) => {
+        const next = [...current, step];
+        lastSavedSnapshotRef.current = stepsSnapshot(next);
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add step");
     }
@@ -185,7 +253,11 @@ export default function SchedulePage() {
     setError(null);
     try {
       await deleteScheduleStep(id);
-      setSteps((current) => current.filter((step) => step.id !== id));
+      setSteps((current) => {
+        const next = current.filter((step) => step.id !== id);
+        lastSavedSnapshotRef.current = stepsSnapshot(next);
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete step");
     }
@@ -344,13 +416,21 @@ export default function SchedulePage() {
             <button type="button" className="btn btn-secondary" onClick={handleAddStep}>
               Add step
             </button>
-            <button type="button" className="btn" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : "Save all changes"}
-            </button>
+            {saveStatusLabel && (
+              <span
+                className="muted"
+                style={{
+                  alignSelf: "center",
+                  color: saveStatus === "error" ? "#b42318" : undefined,
+                }}
+              >
+                {saveStatusLabel}
+              </span>
+            )}
           </div>
 
           <p className="help-text" style={{ marginBottom: "1rem" }}>
-            Available variables: {MESSAGE_VARIABLES.join(", ")}
+            Available variables: {MESSAGE_VARIABLES.join(", ")}. Changes save automatically.
           </p>
 
           {steps.length === 0 ? (
