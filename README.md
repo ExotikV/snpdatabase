@@ -169,6 +169,15 @@ Each step fires once per detail cycle. A client moves to the next step only afte
 
 That adds `sequence_number` (nullable integer) to `sms_log` so each reminder records which schedule step it was for.
 
+### Add customizable SMS message bodies
+
+1. Open your Supabase project.
+2. Go to **SQL Editor**.
+3. Open `schema_reminder_schedule_message_body.sql` from this project.
+4. Paste the SQL into the editor and run it.
+
+That adds `message_body` to `reminder_schedule`. Each step stores the full SMS text with `{variable}` placeholders filled in at send time.
+
 ### How the reminder schedule works
 
 `reminder_schedule` defines a multi-step SMS cadence. Each row is one step:
@@ -176,8 +185,11 @@ That adds `sequence_number` (nullable integer) to `sms_log` so each reminder rec
 - `sequence_number` — order in the sequence (1, 2, 3, …)
 - `days_since_last_detail` — how many days after the client's **most recent completed detail** that step becomes due
 - `active` — set to `false` to disable a step without deleting it
+- `message_body` — full SMS text with `{variables}` filled per client at send time (editable in the dashboard)
 
-**Adjusting timing (until the dashboard exists):** open **Table Editor** → `reminder_schedule` in Supabase and edit `days_since_last_detail` on any row. Changes take effect on the next eligibility run — no code deploy needed. You can also toggle `active` to skip a step.
+**Available variables:** `{name}`, `{first_name}`, `{service}`, `{last_detail_date}`, `{days_since}`, `{step}`, `{booking_url}`
+
+**Adjusting timing and messages:** open **Settings → Reminder Schedule** in the dashboard to edit days and customize each step's SMS. Changes take effect on the next eligibility run — no code deploy needed. Include `{booking_url}` for tracked conversion links.
 
 **Cycle reset on new detail:** eligibility always uses the client's latest `details_completed.completed_at`. When they book again and `pull.js` syncs a newer detail, the cycle restarts at step 1. Only `sms_log` rows with `created_at` **after** that detail count toward the current cycle; older reminders belong to previous cycles and are ignored.
 
@@ -319,7 +331,7 @@ After running, open **Table Editor** → `sms_log` and check:
 - Failed sends: `status = 'failed'`, `sent_at` null, `error_message` contains the Twilio error
 - Pending rows (if a run was interrupted mid-send): `status = 'pending'`, `sent_at` null
 
-To change the message wording or booking link, edit `message-templates.js` only.
+To change the booking link domain, set `BOOKING_WEBSITE_DOMAIN` in the dashboard env or edit `reminder-message.js` / `BOOKING_WEBSITE_DOMAIN` in the backend repo.
 
 ---
 
@@ -463,6 +475,5 @@ While `TEST_MODE = true` in `send_reminders.js`, scheduled and manual runs only 
 
 ## What is not included yet
 
-- Dashboard UI
 - Automatic sync beyond the daily GitHub Actions workflow (manual script runs still work locally)
 

@@ -35,7 +35,7 @@ async function main() {
     console.log("Eligible clients:\n");
     for (const client of eligible) {
       console.log(
-        `${client.name} | ${client.phone ?? "(no phone)"} | last detail: ${formatDetailDate(client.lastDetailDate)} | ${client.daysSince} days since last detail | due for step ${client.sequenceNumber} (${client.daysSinceLastDetail} days)`,
+        `${client.name} | ${client.phone ?? "(no phone)"} | last detail: ${formatDetailDate(client.lastDetailDate)} (${client.lastServiceType ?? "unknown service"}) | ${client.daysSince} days since | step ${client.sequenceNumber}`,
       );
     }
   }

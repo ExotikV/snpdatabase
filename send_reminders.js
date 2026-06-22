@@ -1,6 +1,6 @@
 import "dotenv/config";
 import twilio from "twilio";
-import { buildMaintenanceReminderMessage } from "./message-templates.js";
+import { buildMaintenanceReminderMessage } from "./reminder-message.js";
 import {
   createSupabaseClient,
   getEligibleClients,
@@ -95,8 +95,16 @@ async function markSmsLogFailed(supabase, smsLogId, errorMessage) {
   }
 }
 
-async function sendMaintenanceReminder(twilioClient, toNumber, clientName, smsLogId) {
-  const body = buildMaintenanceReminderMessage(clientName, smsLogId);
+async function sendMaintenanceReminder(twilioClient, toNumber, client, smsLogId) {
+  const body = buildMaintenanceReminderMessage({
+    messageBody: client.messageBody,
+    clientName: client.name,
+    smsLogId,
+    serviceType: client.lastServiceType,
+    lastDetailDate: client.lastDetailDate,
+    daysSince: client.daysSince,
+    sequenceNumber: client.sequenceNumber,
+  });
 
   return twilioClient.messages.create({
     body,
@@ -166,7 +174,7 @@ async function main() {
     }
 
     try {
-      await sendMaintenanceReminder(twilioClient, toNumber, client.name, smsLogId);
+      await sendMaintenanceReminder(twilioClient, toNumber, client, smsLogId);
       await markSmsLogSent(supabase, smsLogId);
       sentCount += 1;
       console.log(

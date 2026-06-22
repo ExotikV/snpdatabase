@@ -1,0 +1,2 @@
+-- Superseded by schema_reminder_schedule_message_body.sql
+-- (message_template_key dropdown templates were replaced by fully customizable message_body text.)

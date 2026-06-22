@@ -68,7 +68,7 @@ async function fetchRowsForClientIds(supabase, table, select, clientIds, applyFi
   return rows;
 }
 
-function getLatestCompletedAtByClient(details) {
+function getLatestDetailByClient(details) {
   const latestByClient = new Map();
 
   for (const row of details) {
@@ -82,8 +82,11 @@ function getLatestCompletedAtByClient(details) {
     }
 
     const existing = latestByClient.get(row.client_id);
-    if (!existing || completedAt > existing) {
-      latestByClient.set(row.client_id, completedAt);
+    if (!existing || completedAt > existing.completedAt) {
+      latestByClient.set(row.client_id, {
+        completedAt,
+        serviceType: row.service_type ?? null,
+      });
     }
   }
 
@@ -152,7 +155,7 @@ export async function getReminderSchedule(supabase) {
   const rows = await fetchAllRows(
     supabase,
     "reminder_schedule",
-    "sequence_number, days_since_last_detail, active",
+    "sequence_number, days_since_last_detail, active, message_body",
     (query) => query.eq("active", true),
   );
 
@@ -201,11 +204,11 @@ export async function getEligibleClients(supabase) {
   const details = await fetchRowsForClientIds(
     supabase,
     "details_completed",
-    "client_id, completed_at",
+    "client_id, completed_at, service_type",
     clientIds,
   );
 
-  const latestCompletedAtByClient = getLatestCompletedAtByClient(details);
+  const latestDetailByClient = getLatestDetailByClient(details);
 
   const reminders = await fetchRowsForClientIds(
     supabase,
@@ -223,11 +226,12 @@ export async function getEligibleClients(supabase) {
   const eligible = [];
 
   for (const [clientId, client] of clientMap) {
-    const lastDetailDate = latestCompletedAtByClient.get(clientId);
-    if (!lastDetailDate) {
+    const lastDetail = latestDetailByClient.get(clientId);
+    if (!lastDetail) {
       continue;
     }
 
+    const lastDetailDate = lastDetail.completedAt;
     const daysSince = daysBetween(lastDetailDate, now);
     const clientReminders = remindersByClient.get(clientId) ?? [];
     const cycleReminders = getCycleReminders(clientReminders, lastDetailDate);
@@ -252,9 +256,11 @@ export async function getEligibleClients(supabase) {
       name: client.name ?? "(no name)",
       phone: client.phone ?? null,
       lastDetailDate,
+      lastServiceType: lastDetail.serviceType,
       daysSince,
       sequenceNumber: nextSequenceNumber,
       daysSinceLastDetail: nextStep.days_since_last_detail,
+      messageBody: nextStep.message_body,
     });
   }
 
