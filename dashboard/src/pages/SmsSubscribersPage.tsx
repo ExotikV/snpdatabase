@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   EnrollmentClient,
   fetchEnrollments,
@@ -7,6 +7,20 @@ import {
 
 type Filter = "all" | "receiving" | "stop" | "manual";
 
+const FILTER_STORAGE_KEY = "snp-sms-subscribers-filter";
+
+function readSavedFilter(): Filter {
+  try {
+    const saved = sessionStorage.getItem(FILTER_STORAGE_KEY);
+    if (saved === "all" || saved === "receiving" || saved === "stop" || saved === "manual") {
+      return saved;
+    }
+  } catch {
+    // ignore
+  }
+  return "all";
+}
+
 function statusBadgeClass(client: EnrollmentClient) {
   if (!client.optedOut) return "badge-converted";
   if (client.optedOutSource === "stop_reply") return "badge-failed";
@@ -14,36 +28,55 @@ function statusBadgeClass(client: EnrollmentClient) {
 }
 
 function compareClients(a: EnrollmentClient, b: EnrollmentClient) {
-  if (a.optedOut !== b.optedOut) return a.optedOut ? -1 : 1;
-  if (a.optedOut && b.optedOut && a.optedOutAt && b.optedOutAt) {
-    return new Date(b.optedOutAt).getTime() - new Date(a.optedOutAt).getTime();
-  }
   return (a.name ?? "").localeCompare(b.name ?? "", undefined, { sensitivity: "base" });
+}
+
+function restoreScroll(y: number) {
+  requestAnimationFrame(() => {
+    window.scrollTo(0, y);
+  });
 }
 
 export default function SmsSubscribersPage() {
   const [clients, setClients] = useState<EnrollmentClient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(readSavedFilter);
+  const scrollYRef = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     setError(null);
+    if (!options?.silent) {
+      scrollYRef.current = window.scrollY;
+    }
     try {
       const data = await fetchEnrollments();
       setClients(data.clients);
+      if (options?.silent) {
+        restoreScroll(scrollYRef.current);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load subscribers");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(FILTER_STORAGE_KEY, filter);
+    } catch {
+      // ignore
+    }
+  }, [filter]);
 
   const summary = useMemo(() => {
     const receiving = clients.filter((c) => !c.optedOut).length;
@@ -63,6 +96,7 @@ export default function SmsSubscribersPage() {
   }, [clients, filter]);
 
   async function handleToggleReceive(clientId: string, shouldReceive: boolean) {
+    scrollYRef.current = window.scrollY;
     setBusyId(clientId);
     setNotice(null);
     setError(null);
@@ -76,17 +110,34 @@ export default function SmsSubscribersPage() {
               optedOut: !shouldReceive,
               optedOutSource: shouldReceive ? null : "manual",
               optedOutLabel: shouldReceive ? null : "Excluded manually",
+              optedOutAt: shouldReceive ? null : new Date().toISOString(),
             }
           : client,
       ),
     );
 
     try {
-      await updateClientSmsExclusion(clientId, !shouldReceive);
+      const result = await updateClientSmsExclusion(clientId, !shouldReceive);
+      setClients((current) =>
+        current.map((client) =>
+          client.clientId === clientId
+            ? {
+                ...client,
+                optedOut: result.opted_out,
+                optedOutSource: result.opted_out_source,
+                optedOutAt: result.opted_out_at,
+                optedOutLabel: result.opted_out
+                  ? result.opted_out_source === "stop_reply"
+                    ? "Unsubscribed (STOP reply)"
+                    : "Excluded manually"
+                  : null,
+              }
+            : client,
+        ),
+      );
       setNotice(
         shouldReceive ? "Client will receive SMS again." : "Client excluded from SMS in dashboard.",
       );
-      await load();
     } catch (err) {
       if (previous) {
         setClients((current) =>
@@ -96,7 +147,14 @@ export default function SmsSubscribersPage() {
       setError(err instanceof Error ? err.message : "Failed to update subscriber");
     } finally {
       setBusyId(null);
+      restoreScroll(scrollYRef.current);
     }
+  }
+
+  function handleRefresh() {
+    scrollYRef.current = window.scrollY;
+    setRefreshing(true);
+    void load({ silent: true });
   }
 
   if (loading) {
@@ -112,7 +170,11 @@ export default function SmsSubscribersPage() {
       </p>
 
       {error && <div className="error-banner">{error}</div>}
-      {notice && <div className="panel" style={{ background: "#ecfdf3" }}>{notice}</div>}
+      {notice && (
+        <div className="panel" style={{ background: "#ecfdf3", scrollMarginTop: 80 }}>
+          {notice}
+        </div>
+      )}
 
       <div className="card-grid" style={{ marginBottom: "1.25rem" }}>
         <div className="card">
@@ -144,8 +206,13 @@ export default function SmsSubscribersPage() {
               <option value="manual">Excluded manually</option>
             </select>
           </label>
-          <button type="button" className="btn btn-secondary" onClick={() => load()}>
-            Refresh
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={refreshing}
+            onClick={handleRefresh}
+          >
+            {refreshing ? "Refreshing…" : "Refresh"}
           </button>
         </div>
 
@@ -189,9 +256,10 @@ export default function SmsSubscribersPage() {
                         type="checkbox"
                         checked={!client.optedOut}
                         disabled={busyId === client.clientId}
-                        onChange={(e) =>
-                          handleToggleReceive(client.clientId, e.target.checked)
-                        }
+                        onChange={(e) => {
+                          void handleToggleReceive(client.clientId, e.target.checked);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       {client.optedOut ? "Off" : "On"}
                     </label>

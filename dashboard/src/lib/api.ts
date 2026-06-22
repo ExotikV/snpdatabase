@@ -201,7 +201,12 @@ export function updateClientLanguage(clientId: string, preferredLanguage: "en" |
 }
 
 export function updateClientSmsExclusion(clientId: string, excludedFromSms: boolean) {
-  return apiFetch<{ ok: boolean; opted_out: boolean }>("api-enrollment", {
+  return apiFetch<{
+    ok: boolean;
+    opted_out: boolean;
+    opted_out_at: string | null;
+    opted_out_source: "manual" | "stop_reply" | null;
+  }>("api-enrollment", {
     method: "PATCH",
     body: JSON.stringify({ clientId, excludedFromSms }),
   });
