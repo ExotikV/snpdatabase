@@ -64,19 +64,51 @@ export function sendReminder(clientId?: string) {
   });
 }
 
+export function fetchTestSmsOptions(search = "") {
+  const query = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : "";
+  return apiFetch<TestSmsOptionsResponse>(`api-test-sms${query}`);
+}
+
+/** @deprecated use fetchTestSmsOptions */
 export function fetchTestPhone() {
-  return apiFetch<{ testPhone: string }>("api-test-sms");
+  return fetchTestSmsOptions().then((data) => ({ testPhone: data.testPhone }));
 }
 
 export function sendTestSms(payload: {
   message_body: string;
-  days_since_last_detail: number;
   track?: "maintenance" | "general";
+  client_name?: string;
+  service_type?: string;
+  last_detail_date?: string;
+  days_since?: number;
+  days_since_last_detail?: number;
 }) {
   return apiFetch<TestSmsResult>("api-test-sms", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      message_body: payload.message_body,
+      track: payload.track,
+      client_name: payload.client_name,
+      service_type: payload.service_type,
+      last_detail_date: payload.last_detail_date,
+      days_since: payload.days_since ?? payload.days_since_last_detail,
+    }),
   });
+}
+
+export interface TestSmsClient {
+  clientId: string;
+  name: string | null;
+  phone: string | null;
+  city: string | null;
+  lastServiceType: string | null;
+  lastDetailDate: string | null;
+  daysSince: number | null;
+}
+
+export interface TestSmsOptionsResponse {
+  testPhone: string;
+  clients: TestSmsClient[];
 }
 
 export function fetchEnrollments() {

@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MESSAGE_VARIABLES,
   ScheduleStep,
+  TestSmsClient,
   createScheduleStep,
   deleteScheduleStep,
   fetchSchedule,
-  fetchTestPhone,
+  fetchTestSmsOptions,
   saveSchedule,
   sendTestSms,
 } from "../lib/api";
@@ -26,6 +27,37 @@ const TRACK_DESCRIPTIONS: Record<Track, string> = {
     "Regular detail — all cities. Anyone not on the maintenance track (any location, past the 60-day window, or no recent detail).",
 };
 
+function toDateInputValue(iso: string | null) {
+  if (!iso) return "";
+  return iso.slice(0, 10);
+}
+
+function daysSinceDate(dateValue: string) {
+  if (!dateValue) return 30;
+  const date = new Date(`${dateValue}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return 30;
+  return Math.max(0, Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000)));
+}
+
+function previewMessage(
+  template: string,
+  vars: {
+    name: string;
+    service: string;
+    lastDetailDate: string;
+    daysSince: number;
+  },
+) {
+  const firstName = vars.name.trim().split(/\s+/)[0] || "there";
+  return template
+    .replace(/\{name\}/g, vars.name)
+    .replace(/\{first_name\}/g, firstName)
+    .replace(/\{service\}/g, vars.service)
+    .replace(/\{last_detail_date\}/g, vars.lastDetailDate)
+    .replace(/\{days_since\}/g, String(vars.daysSince))
+    .replace(/\{booking_url\}/g, "https://example.com/book?ref=test");
+}
+
 export default function SchedulePage() {
   const [activeTrack, setActiveTrack] = useState<Track>("maintenance");
   const [steps, setSteps] = useState<ScheduleStep[]>([]);
@@ -34,34 +66,91 @@ export default function SchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [testPhone, setTestPhone] = useState<string | null>(null);
+  const [testClients, setTestClients] = useState<TestSmsClient[]>([]);
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [testName, setTestName] = useState("Test Client");
+  const [testService, setTestService] = useState("Interior + Exterior");
+  const [testLastDetailDate, setTestLastDetailDate] = useState("");
+  const [testDaysSince, setTestDaysSince] = useState(30);
   const [testingStepId, setTestingStepId] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
+
+  const loadTestClients = useCallback(async (search: string) => {
+    const data = await fetchTestSmsOptions(search);
+    setTestPhone(data.testPhone);
+    setTestClients(data.clients);
+  }, []);
 
   const load = useCallback(async (track: Track) => {
     setError(null);
     setLoading(true);
     try {
-      const [scheduleData, testPhoneData] = await Promise.all([
-        fetchSchedule(track),
-        fetchTestPhone(),
-      ]);
+      const [scheduleData] = await Promise.all([fetchSchedule(track), loadTestClients("")]);
       setSteps(scheduleData.steps.filter((step) => step.track === track));
       setMigrationRequired(Boolean(scheduleData.migrationRequired));
-      setTestPhone(testPhoneData.testPhone);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load schedule");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadTestClients]);
 
   useEffect(() => {
     load(activeTrack);
   }, [activeTrack, load]);
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      loadTestClients(clientSearch).catch(() => {
+        // keep existing list on search failure
+      });
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [clientSearch, loadTestClients]);
+
   function updateStep(id: string, patch: Partial<ScheduleStep>) {
     setSteps((current) => current.map((step) => (step.id === id ? { ...step, ...patch } : step)));
   }
+
+  function handleSelectClient(clientId: string) {
+    setSelectedClientId(clientId);
+    if (!clientId) return;
+
+    const client = testClients.find((row) => row.clientId === clientId);
+    if (!client) return;
+
+    setTestName(client.name ?? "Test Client");
+    setTestService(client.lastServiceType ?? "detail");
+    const dateValue = toDateInputValue(client.lastDetailDate);
+    setTestLastDetailDate(dateValue);
+    setTestDaysSince(
+      client.daysSince ?? (dateValue ? daysSinceDate(dateValue) : testDaysSince),
+    );
+  }
+
+  function handleLastDetailDateChange(dateValue: string) {
+    setTestLastDetailDate(dateValue);
+    if (dateValue) {
+      setTestDaysSince(daysSinceDate(dateValue));
+    }
+  }
+
+  const testPreviewTemplate = useMemo(() => {
+    const firstStep = steps.find((step) => step.message_body?.trim());
+    return firstStep?.message_body ?? DEFAULT_MESSAGES[activeTrack];
+  }, [steps, activeTrack]);
+
+  const testPreview = useMemo(
+    () =>
+      previewMessage(testPreviewTemplate, {
+        name: testName,
+        service: testService,
+        lastDetailDate: testLastDetailDate || "2026-01-01",
+        daysSince: testDaysSince,
+      }),
+    [testPreviewTemplate, testName, testService, testLastDetailDate, testDaysSince],
+  );
 
   async function handleSave() {
     setSaving(true);
@@ -111,8 +200,11 @@ export default function SchedulePage() {
     try {
       const result = await sendTestSms({
         message_body: step.message_body ?? DEFAULT_MESSAGES[activeTrack],
-        days_since_last_detail: step.days_since_last_detail,
         track: activeTrack,
+        client_name: testName,
+        service_type: testService,
+        last_detail_date: testLastDetailDate || undefined,
+        days_since: testDaysSince,
       });
       if (result.ok) {
         setMessage(`Test SMS sent to ${result.to}.`);
@@ -153,13 +245,98 @@ export default function SchedulePage() {
       {migrationRequired && (
         <div className="error-banner" style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}>
           Database update needed: run <code>schema/reminder_schedule_track.sql</code> in the
-          Supabase SQL Editor to enable saving both sequences. Maintenance steps load from your
-          existing data; general steps show defaults until then.
+          Supabase SQL Editor to enable saving both sequences.
         </div>
       )}
 
       {error && <div className="error-banner">{error}</div>}
       {message && <div className="panel" style={{ background: "#ecfdf3" }}>{message}</div>}
+
+      <div className="panel" style={{ marginBottom: "1.5rem" }}>
+        <h2 style={{ marginTop: 0 }}>Test SMS settings</h2>
+        <p className="help-text" style={{ marginBottom: "1rem" }}>
+          Choose a client to fill in sample data, or edit the fields manually. Used by every{" "}
+          <strong>Send test SMS</strong> button below
+          {testPhone ? (
+            <>
+              {" "}
+              · sends to <strong>{testPhone}</strong>
+            </>
+          ) : null}
+          .
+        </p>
+
+        <div className="form-row two-col">
+          <label>
+            Search client
+            <input
+              type="search"
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              placeholder="Type a name…"
+            />
+          </label>
+          <label>
+            Select client
+            <select
+              value={selectedClientId}
+              onChange={(e) => handleSelectClient(e.target.value)}
+            >
+              <option value="">Custom / manual</option>
+              {testClients.map((client) => (
+                <option key={client.clientId} value={client.clientId}>
+                  {client.name ?? "(no name)"}
+                  {client.city ? ` · ${client.city}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="form-row two-col">
+          <label>
+            Client name
+            <input
+              type="text"
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+            />
+          </label>
+          <label>
+            Last service
+            <input
+              type="text"
+              value={testService}
+              onChange={(e) => setTestService(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="form-row two-col">
+          <label>
+            Last detail date
+            <input
+              type="date"
+              value={testLastDetailDate}
+              onChange={(e) => handleLastDetailDateChange(e.target.value)}
+            />
+          </label>
+          <label>
+            Days since last detail
+            <input
+              type="number"
+              min={0}
+              value={testDaysSince}
+              onChange={(e) => setTestDaysSince(Number(e.target.value))}
+            />
+          </label>
+        </div>
+
+        <label className="form-row">
+          Preview (first step template)
+          <textarea readOnly value={testPreview} rows={4} style={{ background: "#f8f9fa" }} />
+        </label>
+      </div>
 
       {loading ? (
         <div className="loading">Loading schedule…</div>
@@ -176,12 +353,6 @@ export default function SchedulePage() {
 
           <p className="help-text" style={{ marginBottom: "1rem" }}>
             Available variables: {MESSAGE_VARIABLES.join(", ")}
-            {testPhone && (
-              <>
-                {" "}
-                · Test SMS sends to <strong>{testPhone}</strong>
-              </>
-            )}
           </p>
 
           {steps.length === 0 ? (

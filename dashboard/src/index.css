@@ -194,6 +194,10 @@ th {
   margin-bottom: 1rem;
 }
 
+.form-row.two-col {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
 .form-row label {
   display: grid;
   gap: 0.35rem;
