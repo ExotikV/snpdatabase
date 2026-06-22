@@ -9,6 +9,7 @@ export default function Layout({ onLogout }: { onLogout: () => void }) {
         </NavLink>
         <NavLink to="/schedule">Reminder schedule</NavLink>
         <NavLink to="/enrollments">Clients</NavLink>
+        <NavLink to="/sms-subscribers">SMS subscribers</NavLink>
         <NavLink to="/send">Send now</NavLink>
         <NavLink to="/bulk-sms">Bulk SMS</NavLink>
         <NavLink to="/sms-log">SMS log</NavLink>

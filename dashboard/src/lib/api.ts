@@ -320,6 +320,13 @@ export interface StatsResponse {
       actualCents: number;
     }[];
   };
+  smsSubscribers: {
+    total: number;
+    receiving: number;
+    unsubscribedStop: number;
+    excludedManual: number;
+    optedOut: number;
+  };
 }
 
 export interface BookingRow {
