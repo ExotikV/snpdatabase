@@ -223,6 +223,8 @@ export interface StatsResponse {
     sms_reminder: number;
     general_reminder: number;
     general_after_maintenance_reminder: number;
+    qr_maintenance: number;
+    qr_general: number;
     qr_code: number;
     other: number;
   }[];

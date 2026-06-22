@@ -155,7 +155,7 @@ export default function OverviewPage() {
                   <td>
                     <strong>
                       {stats.sms.byTrack
-                        .filter((row) => row.triggerType !== "qr_code")
+                        .filter((row) => !row.triggerType.startsWith("qr_"))
                         .reduce((sum, row) => sum + row.bookings, 0)}
                     </strong>
                   </td>
@@ -217,7 +217,14 @@ export default function OverviewPage() {
                       fill="#db2777"
                       name="After maintenance SMS"
                     />
-                    <Bar dataKey="qr_code" stackId="a" fill="#16a34a" name="QR code" />
+                    <Bar
+                      dataKey="qr_maintenance"
+                      stackId="a"
+                      fill="#15803d"
+                      name="QR — Maintenance"
+                    />
+                    <Bar dataKey="qr_general" stackId="a" fill="#4ade80" name="QR — General" />
+                    <Bar dataKey="qr_code" stackId="a" fill="#86efac" name="QR (legacy)" />
                     <Bar dataKey="other" stackId="a" fill="#d97706" name="Other" />
                   </BarChart>
                 </ResponsiveContainer>

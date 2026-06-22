@@ -88,7 +88,9 @@ The city list in `lib/service-area.js` applies **only** to maintenance-detail re
 | `source` value | Meaning |
 |----------------|---------|
 | `direct` | Website booking (no tracking ref) |
-| `qr_code` | QR code maintenance booking |
+| `qr_maintenance` | QR code — maintenance (`/book?source=qr_maintenance`) |
+| `qr_general` | QR code — general detailing (`/book?source=qr_general`) |
+| `qr_code` | Legacy single QR source (older bookings) |
 | `sms_reminder` | Booking from maintenance SMS link (`ref` = `sms_log.id`) |
 | `general_reminder` | Booking from general SMS link (`ref` = `sms_log.id`) |
 
