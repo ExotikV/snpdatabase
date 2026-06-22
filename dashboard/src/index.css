@@ -83,7 +83,41 @@ select {
 
 .card-value {
   font-size: 1.75rem;
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.section-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.section-intro {
+  margin: 0 0 1rem;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stats-table th,
+.stats-table td {
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid #e8ebef;
+}
+
+.stats-table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #666;
+}
+
+.stats-table-total td {
+  border-top: 2px solid #dde1e6;
+  background: #fafbfc;
 }
 
 .panel {

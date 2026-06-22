@@ -200,9 +200,46 @@ export interface TestSmsResult {
 
 export interface StatsResponse {
   totalBookings: number;
-  bySource: { source: string; label: string; count: number; percentage: number }[];
-  trend: { date: string; direct: number; sms_reminder: number; qr_code: number; other: number }[];
-  sms: { sent: number; failed: number; converted: number; conversionRate: number };
+  bySource: {
+    source: string;
+    label: string;
+    count: number;
+    percentage: number;
+    bookedCents: number;
+    actualCents: number;
+  }[];
+  trend: {
+    date: string;
+    direct: number;
+    sms_reminder: number;
+    general_reminder: number;
+    general_after_maintenance_reminder: number;
+    qr_code: number;
+    other: number;
+  }[];
+  revenue: {
+    bookedCents: number;
+    actualCents: number;
+    pendingBookedCents: number;
+    migrationRequired: boolean;
+  };
+  sms: {
+    sent: number;
+    failed: number;
+    converted: number;
+    conversionRate: number;
+    byTrack: {
+      triggerType: string;
+      label: string;
+      sent: number;
+      failed: number;
+      converted: number;
+      bookings: number;
+      conversionRate: number;
+      bookedCents: number;
+      actualCents: number;
+    }[];
+  };
 }
 
 export interface BookingRow {
@@ -213,7 +250,16 @@ export interface BookingRow {
   bookedAt: string;
   processed: boolean;
   rawNote: string | null;
-  linkedSms: { status: string; sentAt: string | null; converted: boolean } | null;
+  bookedRevenueCents: number | null;
+  actualRevenueCents: number | null;
+  revenueStatus: string | null;
+  squareBookingId: string | null;
+  linkedSms: {
+    status: string;
+    sentAt: string | null;
+    converted: boolean;
+    trackLabel?: string;
+  } | null;
 }
 
 export interface SmsLogRow {
