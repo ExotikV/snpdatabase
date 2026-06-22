@@ -10,6 +10,9 @@
 [functions."scheduled-reminders"]
   schedule = "0 * * * *"
 
+[functions."scheduled-square-sync"]
+  schedule = "0 6 * * *"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -7,10 +7,14 @@
     "dashboard:dev": "npm run dev --prefix dashboard",
     "dashboard:build": "npm run build --prefix dashboard",
     "dev": "netlify dev",
-    "build": "npm run dashboard:build"
+    "build": "npm run dashboard:build",
+    "sync": "node scripts/sync-square.js",
+    "sync:customers": "node scripts/sync-square.js --customers-only"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
+    "dotenv": "^16.4.7",
+    "square": "^42.0.0",
     "twilio": "^5.5.1"
   },
   "devDependencies": {

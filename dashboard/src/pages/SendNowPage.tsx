@@ -71,8 +71,8 @@ export default function SendNowPage() {
   return (
     <>
       <p className="muted" style={{ marginTop: 0 }}>
-        Clients enrolled in the maintenance program who have reached the next scheduled reminder
-        day. The scheduled function also sends these automatically every hour.
+        Clients enrolled in the maintenance program (eligible city only) who have reached the next
+        scheduled reminder day. The scheduled function also sends these automatically every hour.
       </p>
 
       {error && <div className="error-banner">{error}</div>}
@@ -97,6 +97,7 @@ export default function SendNowPage() {
             <thead>
               <tr>
                 <th>Client</th>
+                <th>City</th>
                 <th>Phone</th>
                 <th>Days since last detail</th>
                 <th>Step</th>
@@ -108,6 +109,7 @@ export default function SendNowPage() {
               {eligible.map((client) => (
                 <tr key={client.clientId}>
                   <td>{client.name}</td>
+                  <td>{client.city ?? "—"}</td>
                   <td>{client.phone ?? "—"}</td>
                   <td>{client.daysSince}</td>
                   <td>#{client.sequenceNumber}</td>

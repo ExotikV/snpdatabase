@@ -8,6 +8,7 @@ export default function Layout() {
           Overview
         </NavLink>
         <NavLink to="/schedule">Reminder schedule</NavLink>
+        <NavLink to="/enrollments">Enrollments</NavLink>
         <NavLink to="/send">Send now</NavLink>
         <NavLink to="/sms-log">SMS log</NavLink>
         <span className="nav-right muted">Auto-refreshes hourly</span>

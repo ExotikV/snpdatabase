@@ -2,6 +2,7 @@ import { getSupabase } from "../../lib/supabase.js";
 import { getEligibleClients } from "../../lib/eligibility.js";
 import { sendMaintenanceReminders } from "../../lib/sms.js";
 import { runMatchConversions } from "../../lib/conversions.js";
+import { runSquareSync } from "../../lib/square-sync.js";
 
 export const handler = async () => {
   const startedAt = new Date().toISOString();
@@ -9,6 +10,9 @@ export const handler = async () => {
 
   try {
     const supabase = getSupabase();
+
+    const squareStats = await runSquareSync({ customersOnly: true });
+    console.log("[scheduled-reminders] Square customer sync:", JSON.stringify(squareStats));
 
     const conversionStats = await runMatchConversions(supabase);
     console.log("[scheduled-reminders] Conversion matching:", JSON.stringify(conversionStats));
@@ -24,6 +28,7 @@ export const handler = async () => {
           eligible: 0,
           sent: 0,
           failed: 0,
+          squareSync: squareStats,
           conversions: conversionStats,
         }),
       };
@@ -43,6 +48,7 @@ export const handler = async () => {
         eligible: eligible.length,
         sent: sent.length,
         failed: failed.length,
+        squareSync: squareStats,
         conversions: conversionStats,
         failedDetails: failed,
       }),

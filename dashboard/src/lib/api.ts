@@ -76,6 +76,66 @@ export function sendTestSms(payload: {
   });
 }
 
+export function fetchEnrollments() {
+  return apiFetch<EnrollmentResponse>("api-enrollment");
+}
+
+export function enrollClient(clientId: string) {
+  return apiFetch<{ ok: boolean; error?: string }>("api-enrollment", {
+    method: "POST",
+    body: JSON.stringify({ clientId }),
+  });
+}
+
+export function unenrollClient(clientId: string) {
+  return apiFetch<{ ok: boolean }>("api-enrollment", {
+    method: "DELETE",
+    body: JSON.stringify({ clientId }),
+  });
+}
+
+export function updateClientCity(clientId: string, city: string) {
+  return apiFetch<{ ok: boolean; cityEligible: boolean }>("api-enrollment", {
+    method: "PATCH",
+    body: JSON.stringify({ clientId, city }),
+  });
+}
+
+export function syncFromSquare(customersOnly = false) {
+  return apiFetch<SquareSyncResult>("api-square-sync", {
+    method: "POST",
+    body: JSON.stringify({ customersOnly }),
+  });
+}
+
+export interface SquareSyncResult {
+  ok: boolean;
+  stats: {
+    customersFetched: number;
+    clientsProcessed: number;
+    clientsWithCity: number;
+    clientErrors: number;
+    bookingsFetched?: number;
+    bookingsProcessed?: number;
+    bookingErrors?: number;
+  };
+}
+
+export interface EnrollmentClient {
+  clientId: string;
+  name: string | null;
+  phone: string | null;
+  city: string | null;
+  cityEligible: boolean;
+  enrolled: boolean;
+  enrolledAt: string | null;
+}
+
+export interface EnrollmentResponse {
+  clients: EnrollmentClient[];
+  eligibleCities: string[];
+}
+
 export interface TestSmsResult {
   ok: boolean;
   to?: string;
@@ -127,6 +187,7 @@ export interface EligibleClient {
   clientId: string;
   name: string;
   phone: string | null;
+  city: string | null;
   daysSince: number;
   sequenceNumber: number;
   lastDetailDate: string;

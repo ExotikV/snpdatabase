@@ -12,6 +12,7 @@ export const handler = withAuth(async () => {
         clientId: client.clientId,
         name: client.name,
         phone: client.phone,
+        city: client.city,
         daysSince: client.daysSince,
         sequenceNumber: client.sequenceNumber,
         lastDetailDate: client.lastDetailDateFormatted,
