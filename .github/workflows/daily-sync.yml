@@ -1,17 +1,9 @@
 name: daily-sync
 
-# TEST_MODE is currently true in send_reminders.js -- this workflow will only send SMS to the
-# hardcoded test phone number until TEST_MODE is manually changed to false in the code.
+# Scheduled sync runs on Netlify (see netlify.toml + dashboard/netlify/functions/daily-sync.mjs).
+# This workflow is manual backup only — avoids double-running pull/SMS/match jobs.
 
 on:
-  schedule:
-    # 10pm Eastern during EDT (UTC-4) = 02:00 UTC. GitHub Actions cron uses UTC only and does
-    # not auto-adjust for daylight saving time.
-    # When Eastern Standard Time begins (clocks fall back, roughly early November): change to
-    # '0 3 * * *' (10pm EST = 03:00 UTC).
-    # When Eastern Daylight Time begins again (clocks spring forward, roughly early March):
-    # change back to '0 2 * * *'.
-    - cron: "0 2 * * *"
   workflow_dispatch:
 
 jobs:
@@ -50,17 +42,8 @@ jobs:
           done
           if [ -n "$missing" ]; then
             echo "::error::Missing or empty GitHub Actions secrets:$missing"
-            echo "Add each name under Settings → Secrets and variables → Actions → Repository secrets (not Variables)."
             exit 1
           fi
 
-      - name: Pull Square data into Supabase
-        run: node pull.js
-
-      - name: Send maintenance reminder SMS
-        run: node send_reminders.js
-
-      # send_reminders.js continues after individual SMS failures and exits 0 unless the script
-      # crashes; match_conversions only skips if that step exits with a non-zero code.
-      - name: Match booking conversions
-        run: node match_conversions.js
+      - name: Run daily sync
+        run: node daily-sync.js

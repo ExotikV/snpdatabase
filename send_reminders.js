@@ -113,7 +113,7 @@ async function sendMaintenanceReminder(twilioClient, toNumber, client, smsLogId)
   });
 }
 
-async function main() {
+export async function runSendReminders() {
   requireEnv();
 
   if (TEST_MODE && (!TEST_PHONE_NUMBER || TEST_PHONE_NUMBER === "+10000000000")) {
@@ -215,8 +215,17 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`Fatal error: ${message}`);
-  process.exit(1);
-});
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const isDirectRun =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isDirectRun) {
+  runSendReminders().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Fatal error: ${message}`);
+    process.exit(1);
+  });
+}

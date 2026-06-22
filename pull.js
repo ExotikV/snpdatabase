@@ -297,7 +297,7 @@ async function loadClientMap(supabase) {
   return clientMap;
 }
 
-async function main() {
+export async function runPull() {
   requireEnv();
 
   const squareClient = new SquareClient({
@@ -425,13 +425,22 @@ async function main() {
   console.log(`Booking errors: ${bookingErrors}`);
 }
 
-main().catch((error) => {
-  const message =
-    error instanceof SquareError
-      ? `${error.message} (status ${error.statusCode ?? "unknown"})`
-      : error instanceof Error
-        ? error.message
-        : String(error);
-  console.error(`Fatal error: ${message}`);
-  process.exit(1);
-});
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const isDirectRun =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isDirectRun) {
+  runPull().catch((error) => {
+    const message =
+      error instanceof SquareError
+        ? `${error.message} (status ${error.statusCode ?? "unknown"})`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    console.error(`Fatal error: ${message}`);
+    process.exit(1);
+  });
+}

@@ -1,44 +1,26 @@
 # SNP SMS Dashboard
 
-Next.js admin UI for the SNP maintenance reminder system. Lives in this repo under `dashboard/` alongside the backend scripts at the repo root.
+Next.js site deployed as the **main Netlify website** for the snpdatabase repo. Includes the admin UI and hooks into backend scripts at the repo root for nightly sync.
+
+See the [root README](../README.md) for full Netlify deployment, env vars, and backend docs.
 
 ## Run locally
 
-From the **repo root**:
-
 ```bash
-npm run dashboard:install   # first time only
+# from repo root
+npm run dashboard:install
 npm run dashboard:dev
 ```
 
-Or from this folder:
+Copy `.env.local.example` → `.env.local`.
 
-```bash
-npm install
-npm run dev
-```
+## What runs on Netlify
 
-Open [http://localhost:3000](http://localhost:3000).
+| Piece | How |
+|-------|-----|
+| Dashboard UI | Next.js (`/`, `/sms-log`, `/manual-trigger`, etc.) |
+| Nightly backend | Scheduled function → `POST /api/cron/daily-sync` → `daily-sync.js` at repo root |
 
-## Environment
+## Env vars
 
-Copy `.env.local.example` to `.env.local` and fill in values. Use the same Supabase project as the backend `.env` at the repo root.
-
-## Deploy (Netlify)
-
-1. Connect this **snpdatabase** GitHub repo to Netlify.
-2. Set **Base directory** to `dashboard`.
-3. Add the same env vars as `.env.local` under Site configuration → Environment variables.
-4. Deploy.
-
-## Pages
-
-| Route | Purpose |
-|-------|---------|
-| `/` | Overview stats |
-| `/sms-log` | SMS history |
-| `/manual-trigger` | Eligibility check + send reminders |
-| `/bulk-send` | Manual SMS blast |
-| `/settings/reminder-schedule` | Cadence + customizable SMS per step |
-
-Backend scripts (`pull.js`, `send_reminders.js`, etc.) are documented in the [root README](../README.md).
+Same as `.env.local.example`. On Netlify, also set `SQUARE_*` and `CRON_SECRET` for the nightly job.

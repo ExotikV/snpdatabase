@@ -1,0 +1,18 @@
+# SNP Database — one Netlify site: dashboard UI + scheduled backend sync.
+#
+# - Next.js dashboard is the public site (login, stats, SMS tools, settings)
+# - netlify/functions/daily-sync.mjs runs pull → send_reminders → match_conversions on cron
+#
+# Netlify UI: link this repo (snpdatabase). Root netlify.toml sets base = dashboard.
+# Do NOT set a conflicting base directory in the UI unless this file is removed.
+
+[build]
+  base = "dashboard"
+  command = "npm ci && npm run build"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

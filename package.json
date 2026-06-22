@@ -10,6 +10,7 @@
     "match-conversions": "node match_conversions.js",
     "diagnose-booking-attempts": "node diagnose_booking_attempts.js",
     "diagnose-eligibility": "node diagnose_eligibility.js",
+    "daily-sync": "node daily-sync.js",
     "dashboard:install": "npm install --prefix dashboard",
     "dashboard:dev": "npm run dev --prefix dashboard",
     "dashboard:build": "npm run build --prefix dashboard",

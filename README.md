@@ -6,8 +6,8 @@ Square → Supabase data sync, maintenance reminder SMS, and an internal admin d
 
 | Path | What it is |
 |------|------------|
-| **Repo root** | Backend scripts — Square pull, eligibility, Twilio sends, conversion matching, GitHub Actions nightly job |
-| **`dashboard/`** | Next.js admin UI — stats, SMS log, manual trigger, bulk send, reminder schedule settings |
+| **Repo root** | Backend scripts — Square pull, eligibility, Twilio sends, conversion matching (`npm run daily-sync`) |
+| **`dashboard/`** | Next.js site deployed to Netlify — admin UI + `/api/cron/daily-sync` for scheduled backend |
 
 Both share the same Supabase project.
 
@@ -76,7 +76,53 @@ npm run dashboard:dev
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with `DASHBOARD_PASSWORD`.
 
-Deploy the dashboard to Netlify with **Base directory** set to `dashboard` (see `dashboard/netlify.toml`).
+---
+
+## Deploy everything on Netlify (recommended)
+
+One Netlify site from **this repo** (`snpdatabase`) runs:
+
+1. **The dashboard** — your main website (login, stats, SMS tools, schedule settings)
+2. **The backend** — nightly at 10pm Eastern via a Netlify scheduled function that runs Square pull → SMS reminders → conversion matching
+
+Root **`netlify.toml`** sets `base = "dashboard"`. Commit and push it before connecting Netlify.
+
+### Netlify setup (SNP Database site)
+
+1. [Netlify](https://app.netlify.com) → **Add new site** → Import **snpdatabase** from GitHub (or change existing site’s repo to snpdatabase).
+2. Leave **Build settings** empty if root `netlify.toml` is on `main` — it sets base `dashboard`, build command, and Next.js plugin.
+3. If you still see a **404**, set **Site configuration → Build & deploy → Base directory** to `dashboard`, then **Clear cache and deploy site**.
+4. Add **Environment variables** (Site configuration → Environment variables):
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-side Supabase access |
+| `DASHBOARD_PASSWORD` | Yes | Dashboard login password |
+| `TWILIO_ACCOUNT_SID` | Yes | SMS sending |
+| `TWILIO_AUTH_TOKEN` | Yes | SMS sending |
+| `TWILIO_PHONE_NUMBER` | Yes | SMS sending |
+| `BOOKING_WEBSITE_DOMAIN` | Optional | Links in reminder SMS |
+| `SQUARE_ACCESS_TOKEN` | Yes | Nightly Square pull |
+| `SQUARE_ENVIRONMENT` | Yes | `production` or `sandbox` |
+| `CRON_SECRET` | Yes | Long random string — secures `/api/cron/daily-sync` |
+
+5. Deploy. Open your site URL — you should see the **login page**, not Netlify’s generic 404.
+
+### Nightly backend on Netlify
+
+`dashboard/netlify/functions/daily-sync.mjs` runs on cron **`0 2 * * *`** (10pm Eastern EDT). It POSTs to `/api/cron/daily-sync`, which runs the same code as `npm run daily-sync` at the repo root.
+
+**Test manually** (after deploy):
+
+```bash
+curl -X POST "https://YOUR-SITE.netlify.app/api/cron/daily-sync" \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+```
+
+**GitHub Actions** (`.github/workflows/daily-sync.yml`) is **manual backup only** (`workflow_dispatch`) so jobs are not double-run.
+
+**DST:** In November when Eastern is EST, change cron in `dashboard/netlify/functions/daily-sync.mjs` from `0 2 * * *` to `0 3 * * *`.
 
 ---
 
@@ -474,43 +520,11 @@ Summary output is broken out by source: converted, orphaned refs, QR bookings, d
 | `qr_code` | Count as maintenance-card QR booking (log phone/customer if present), `processed = true` — no `sms_log` update |
 | `direct` | Count as normal website booking (log phone/customer if present), `processed = true` — no `sms_log` update |
 
-### Daily GitHub Actions workflow
+### GitHub Actions (manual backup)
 
-The repo includes `.github/workflows/daily-sync.yml`, which runs all three backend scripts in order:
+Nightly sync runs on **Netlify** by default. The repo also includes `.github/workflows/daily-sync.yml` for **manual** runs only (`workflow_dispatch`) — it executes `node daily-sync.js` if you need a backup trigger from GitHub.
 
-1. `pull.js` — sync Square customers and bookings into Supabase
-2. `send_reminders.js` — check eligibility and send maintenance SMS
-3. `match_conversions.js` — match new bookings back to `sms_log`
-
-**Schedule:** daily at 10pm Eastern (see the cron comment in the workflow file for UTC conversion and DST notes).
-
-**Manual run:** the workflow also supports `workflow_dispatch` so you can trigger it from the Actions tab without waiting for the schedule.
-
-#### Required GitHub Actions secrets
-
-Add these as **Repository secrets** (not Variables) under **Settings → Secrets and variables → Actions → New repository secret**. Names must match exactly:
-
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SQUARE_ACCESS_TOKEN`
-- `SQUARE_ENVIRONMENT` — use `production` or `sandbox`
-- `TWILIO_ACCOUNT_SID`
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_PHONE_NUMBER`
-
-If a secret is missing or empty, the workflow fails at **Verify required secrets are configured** (or `pull.js` with the same variable names). Secrets are not read from your local `.env` file in CI — only from GitHub.
-
-**Fork note:** scheduled and manual runs on a fork do not receive the upstream repo’s secrets; add secrets on the repo where the workflow runs.
-
-#### First-time setup and manual test
-
-1. Commit and push `.github/workflows/daily-sync.yml` to GitHub.
-2. Open your repo on GitHub and go to the **Actions** tab.
-3. Select **daily-sync** in the left sidebar.
-4. Click **Run workflow**, then **Run workflow** again to start a manual run.
-5. Open the run and confirm all three steps complete successfully.
-
-While `TEST_MODE = true` in `send_reminders.js`, scheduled and manual runs only send SMS to the hardcoded test phone number — not real clients.
+While `TEST_MODE = true` in `send_reminders.js`, runs only send SMS to the hardcoded test phone number — not real clients.
 
 ---
 

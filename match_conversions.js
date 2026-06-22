@@ -153,7 +153,7 @@ function normalizeSource(source) {
   return typeof source === "string" ? source.trim().toLowerCase() : "";
 }
 
-async function main() {
+export async function runMatchConversions() {
   requireEnv();
 
   const supabase = createSupabaseClient();
@@ -217,7 +217,16 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(`Fatal error: ${formatError(error)}`);
-  process.exit(1);
-});
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const isDirectRun =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isDirectRun) {
+  runMatchConversions().catch((error) => {
+    console.error(`Fatal error: ${formatError(error)}`);
+    process.exit(1);
+  });
+}

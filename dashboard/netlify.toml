@@ -1,6 +1,1 @@
-[build]
-  command = "npm run build"
-  publish = ".next"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+# Build settings come from the repo root netlify.toml (base = dashboard).
