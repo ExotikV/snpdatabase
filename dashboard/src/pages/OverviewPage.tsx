@@ -212,9 +212,8 @@ export default function OverviewPage() {
               <p className="muted section-intro">
                 Conversion rate = QR bookings ÷ completed Square details (one card handed out per
                 detail). Tracking since{" "}
-                <strong>{formatTrackingDate(stats.qr.trackingStartDate)}</strong>. Maintenance
-                details count toward the maintenance card; all other completed details count toward
-                the general card.
+                <strong>{formatTrackingDate(stats.qr.trackingStartDate)}</strong>. Clients in your
+                maintenance service area get a maintenance card; everyone else gets a general card.
               </p>
               <div className="panel">
                 <table className="stats-table">
