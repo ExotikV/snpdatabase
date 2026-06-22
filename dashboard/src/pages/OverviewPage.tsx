@@ -33,12 +33,24 @@ function revenueStatusLabel(status: string | null) {
   return status ?? "—";
 }
 
+function formatTrackingDate(ymd: string) {
+  return new Date(`${ymd}T12:00:00`).toLocaleDateString("en-CA", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+type PerformanceTab = "sms" | "qr";
+
 export default function OverviewPage() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [performanceTab, setPerformanceTab] = useState<PerformanceTab>("sms");
 
   const load = useCallback(async () => {
     setError(null);
@@ -112,74 +124,156 @@ export default function OverviewPage() {
           </div>
 
           <h2 className="section-title">SMS &amp; QR performance</h2>
-          <p className="muted section-intro">
-            Conversion rate = bookings from that channel ÷ SMS sent (QR has no send count).
-            Bookings and revenue are counted when checkout completes, not when the appointment
-            happens.
-          </p>
-          <div className="panel">
-            <table className="stats-table">
-              <thead>
-                <tr>
-                  <th>Track</th>
-                  <th>Sent</th>
-                  <th>Failed</th>
-                  <th>Bookings</th>
-                  <th>Conv. rate</th>
-                  <th>Booked revenue</th>
-                  <th>Actual revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.sms.byTrack.map((row) => (
-                  <tr key={row.triggerType}>
-                    <td>{row.label}</td>
-                    <td>{row.sent}</td>
-                    <td>{row.failed}</td>
-                    <td>{row.bookings}</td>
-                    <td>{row.conversionRate == null ? "—" : `${row.conversionRate}%`}</td>
-                    <td>{formatCad(row.bookedCents)}</td>
-                    <td>{formatCad(row.actualCents)}</td>
-                  </tr>
-                ))}
-                <tr className="stats-table-total">
-                  <td>
-                    <strong>All SMS</strong>
-                  </td>
-                    <td>
-                    <strong>{stats.sms.sent}</strong>
-                  </td>
-                  <td>
-                    <strong>{stats.sms.failed}</strong>
-                  </td>
-                  <td>
-                    <strong>
-                      {stats.sms.byTrack
-                        .filter((row) => !row.triggerType.startsWith("qr_"))
-                        .reduce((sum, row) => sum + row.bookings, 0)}
-                    </strong>
-                  </td>
-                  <td>
-                    <strong>{stats.sms.conversionRate}%</strong>
-                  </td>
-                  <td>
-                    <strong>
-                      {formatCad(
-                        stats.sms.byTrack.reduce((sum, row) => sum + row.bookedCents, 0),
-                      )}
-                    </strong>
-                  </td>
-                  <td>
-                    <strong>
-                      {formatCad(
-                        stats.sms.byTrack.reduce((sum, row) => sum + row.actualCents, 0),
-                      )}
-                    </strong>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+            <button
+              type="button"
+              className={performanceTab === "sms" ? "btn" : "btn btn-secondary"}
+              onClick={() => setPerformanceTab("sms")}
+            >
+              SMS
+            </button>
+            <button
+              type="button"
+              className={performanceTab === "qr" ? "btn" : "btn btn-secondary"}
+              onClick={() => setPerformanceTab("qr")}
+            >
+              QR codes
+            </button>
           </div>
+
+          {performanceTab === "sms" ? (
+            <>
+              <p className="muted section-intro">
+                Conversion rate = website bookings from that SMS track ÷ SMS sent. Bookings are
+                counted at checkout.
+              </p>
+              <div className="panel">
+                <table className="stats-table">
+                  <thead>
+                    <tr>
+                      <th>Track</th>
+                      <th>Sent</th>
+                      <th>Failed</th>
+                      <th>Bookings</th>
+                      <th>Conv. rate</th>
+                      <th>Booked revenue</th>
+                      <th>Actual revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.sms.byTrack.map((row) => (
+                      <tr key={row.triggerType}>
+                        <td>{row.label}</td>
+                        <td>{row.sent}</td>
+                        <td>{row.failed}</td>
+                        <td>{row.bookings}</td>
+                        <td>{row.conversionRate == null ? "—" : `${row.conversionRate}%`}</td>
+                        <td>{formatCad(row.bookedCents)}</td>
+                        <td>{formatCad(row.actualCents)}</td>
+                      </tr>
+                    ))}
+                    <tr className="stats-table-total">
+                      <td>
+                        <strong>All SMS</strong>
+                      </td>
+                      <td>
+                        <strong>{stats.sms.sent}</strong>
+                      </td>
+                      <td>
+                        <strong>{stats.sms.failed}</strong>
+                      </td>
+                      <td>
+                        <strong>{stats.sms.converted}</strong>
+                      </td>
+                      <td>
+                        <strong>{stats.sms.conversionRate}%</strong>
+                      </td>
+                      <td>
+                        <strong>
+                          {formatCad(
+                            stats.sms.byTrack.reduce((sum, row) => sum + row.bookedCents, 0),
+                          )}
+                        </strong>
+                      </td>
+                      <td>
+                        <strong>
+                          {formatCad(
+                            stats.sms.byTrack.reduce((sum, row) => sum + row.actualCents, 0),
+                          )}
+                        </strong>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="muted section-intro">
+                Conversion rate = QR bookings ÷ completed Square details (one card handed out per
+                detail). Tracking since{" "}
+                <strong>{formatTrackingDate(stats.qr.trackingStartDate)}</strong>. Maintenance
+                details count toward the maintenance card; all other completed details count toward
+                the general card.
+              </p>
+              <div className="panel">
+                <table className="stats-table">
+                  <thead>
+                    <tr>
+                      <th>Card type</th>
+                      <th>Cards handed out</th>
+                      <th>Bookings</th>
+                      <th>Conv. rate</th>
+                      <th>Booked revenue</th>
+                      <th>Actual revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.qr.byTrack.map((row) => (
+                      <tr key={row.source}>
+                        <td>{row.label}</td>
+                        <td>{row.cardsHandedOut}</td>
+                        <td>{row.bookings}</td>
+                        <td>{row.conversionRate == null ? "—" : `${row.conversionRate}%`}</td>
+                        <td>{formatCad(row.bookedCents)}</td>
+                        <td>{formatCad(row.actualCents)}</td>
+                      </tr>
+                    ))}
+                    <tr className="stats-table-total">
+                      <td>
+                        <strong>All QR</strong>
+                      </td>
+                      <td>
+                        <strong>{stats.qr.cardsHandedOut}</strong>
+                      </td>
+                      <td>
+                        <strong>{stats.qr.bookings}</strong>
+                      </td>
+                      <td>
+                        <strong>
+                          {stats.qr.conversionRate == null ? "—" : `${stats.qr.conversionRate}%`}
+                        </strong>
+                      </td>
+                      <td>
+                        <strong>
+                          {formatCad(
+                            stats.qr.byTrack.reduce((sum, row) => sum + row.bookedCents, 0),
+                          )}
+                        </strong>
+                      </td>
+                      <td>
+                        <strong>
+                          {formatCad(
+                            stats.qr.byTrack.reduce((sum, row) => sum + row.actualCents, 0),
+                          )}
+                        </strong>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           <h2 className="section-title">Bookings by source</h2>
           <div className="card-grid">
@@ -224,7 +318,6 @@ export default function OverviewPage() {
                       name="QR — Maintenance"
                     />
                     <Bar dataKey="qr_general" stackId="a" fill="#4ade80" name="QR — General" />
-                    <Bar dataKey="qr_code" stackId="a" fill="#86efac" name="QR (legacy)" />
                     <Bar dataKey="other" stackId="a" fill="#d97706" name="Other" />
                   </BarChart>
                 </ResponsiveContainer>

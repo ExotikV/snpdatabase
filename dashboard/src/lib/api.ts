@@ -225,7 +225,6 @@ export interface StatsResponse {
     general_after_maintenance_reminder: number;
     qr_maintenance: number;
     qr_general: number;
-    qr_code: number;
     other: number;
   }[];
   revenue: {
@@ -245,6 +244,21 @@ export interface StatsResponse {
       sent: number;
       failed: number;
       converted: number;
+      bookings: number;
+      conversionRate: number | null;
+      bookedCents: number;
+      actualCents: number;
+    }[];
+  };
+  qr: {
+    trackingStartDate: string;
+    cardsHandedOut: number;
+    bookings: number;
+    conversionRate: number | null;
+    byTrack: {
+      source: string;
+      label: string;
+      cardsHandedOut: number;
       bookings: number;
       conversionRate: number | null;
       bookedCents: number;
