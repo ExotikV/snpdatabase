@@ -9,7 +9,12 @@
     "send-reminders": "node send_reminders.js",
     "match-conversions": "node match_conversions.js",
     "diagnose-booking-attempts": "node diagnose_booking_attempts.js",
-    "diagnose-eligibility": "node diagnose_eligibility.js"
+    "diagnose-eligibility": "node diagnose_eligibility.js",
+    "dashboard:install": "npm install --prefix dashboard",
+    "dashboard:dev": "npm run dev --prefix dashboard",
+    "dashboard:build": "npm run build --prefix dashboard",
+    "dashboard:start": "npm run start --prefix dashboard",
+    "dashboard:lint": "npm run lint --prefix dashboard"
   },
   "engines": {
     "node": ">=18"

@@ -1,6 +1,15 @@
 # SNP Square Sync
 
-Square → Supabase data sync and maintenance reminder eligibility for a mobile detailing SMS system.
+Square → Supabase data sync, maintenance reminder SMS, and an internal admin dashboard for SNP Detailing.
+
+## Project layout
+
+| Path | What it is |
+|------|------------|
+| **Repo root** | Backend scripts — Square pull, eligibility, Twilio sends, conversion matching, GitHub Actions nightly job |
+| **`dashboard/`** | Next.js admin UI — stats, SMS log, manual trigger, bulk send, reminder schedule settings |
+
+Both share the same Supabase project.
 
 ## Prerequisites
 
@@ -11,13 +20,23 @@ Square → Supabase data sync and maintenance reminder eligibility for a mobile 
 
 ## Install
 
+**Backend (repo root):**
+
 ```bash
 npm install
 ```
 
+**Dashboard:**
+
+```bash
+npm run dashboard:install
+```
+
+Or `cd dashboard && npm install`.
+
 ## Configure environment variables
 
-Copy the placeholders in `.env` and replace them with your real values:
+**Backend** — copy placeholders into `.env` at the repo root:
 
 ```env
 SUPABASE_URL=https://your-project.supabase.co
@@ -36,6 +55,28 @@ Where to find them:
 - **SQUARE_ENVIRONMENT**: use `production` for live data (use `sandbox` only if testing against Square's sandbox)
 
 Use the service role key only in trusted backend scripts like this one. Do not expose it in a browser app.
+
+**Dashboard** — copy `dashboard/.env.local.example` to `dashboard/.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+DASHBOARD_PASSWORD=change-me-before-going-live
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=+15551234567
+BOOKING_WEBSITE_DOMAIN=www.snpdetailing.ca
+```
+
+Run the dashboard locally:
+
+```bash
+npm run dashboard:dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and sign in with `DASHBOARD_PASSWORD`.
+
+Deploy the dashboard to Netlify with **Base directory** set to `dashboard` (see `dashboard/netlify.toml`).
 
 ---
 
@@ -476,4 +517,20 @@ While `TEST_MODE = true` in `send_reminders.js`, scheduled and manual runs only 
 ## What is not included yet
 
 - Automatic sync beyond the daily GitHub Actions workflow (manual script runs still work locally)
+
+---
+
+## Dashboard (`dashboard/`)
+
+Password-protected Next.js app for day-to-day operations:
+
+- **Overview** — SMS volume, conversion rate, booking sources
+- **SMS Log** — browse and filter send history
+- **Manual Trigger** — check eligibility and send maintenance reminders
+- **Bulk Send** — custom SMS to selected clients
+- **Settings → Reminder Schedule** — edit days per step and fully customize SMS text with `{name}`, `{service}`, `{last_detail_date}`, `{days_since}`, `{step}`, `{booking_url}`
+
+Eligibility logic in the dashboard matches `eligibility.js` in this repo. Message rendering matches `reminder-message.js`.
+
+More detail: [`dashboard/README.md`](dashboard/README.md).
 

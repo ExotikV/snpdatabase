@@ -1,2 +1,7 @@
 node_modules/
 .env
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/
+dashboard/.env*
+!dashboard/.env.local.example
