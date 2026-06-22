@@ -15,6 +15,7 @@ import {
   hasTrackColumn,
 } from "../../lib/schedule-db.js";
 import { TRACKS } from "../../lib/tracks.js";
+import { validateScheduleStepDays } from "../../lib/schedule-rules.js";
 
 function parseTrack(value) {
   if (
@@ -108,6 +109,11 @@ export const handler = withAuth(async (event) => {
       for (const step of body.steps) {
         if (!step.id || String(step.id).startsWith("pending-")) {
           return jsonResponse({ error: "Each step must have a saved database id" }, 400);
+        }
+
+        const daysError = validateScheduleStepDays(step);
+        if (daysError) {
+          return jsonResponse({ error: daysError }, 400);
         }
 
         const updatePayload = {
