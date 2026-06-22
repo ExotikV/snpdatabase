@@ -5,7 +5,9 @@ import {
   createScheduleStep,
   deleteScheduleStep,
   fetchSchedule,
+  fetchTestPhone,
   saveSchedule,
+  sendTestSms,
 } from "../lib/api";
 
 const DEFAULT_MESSAGE =
@@ -17,12 +19,18 @@ export default function SchedulePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [testPhone, setTestPhone] = useState<string | null>(null);
+  const [testingStepId, setTestingStepId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const data = await fetchSchedule();
-      setSteps(data.steps);
+      const [scheduleData, testPhoneData] = await Promise.all([
+        fetchSchedule(),
+        fetchTestPhone(),
+      ]);
+      setSteps(scheduleData.steps);
+      setTestPhone(testPhoneData.testPhone);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load schedule");
     } finally {
@@ -78,6 +86,27 @@ export default function SchedulePage() {
     }
   }
 
+  async function handleTestSms(step: ScheduleStep) {
+    setTestingStepId(step.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await sendTestSms({
+        message_body: step.message_body ?? DEFAULT_MESSAGE,
+        days_since_last_detail: step.days_since_last_detail,
+      });
+      if (result.ok) {
+        setMessage(`Test SMS sent to ${result.to}.`);
+      } else {
+        setError(result.reason ?? "Test SMS failed");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Test SMS failed");
+    } finally {
+      setTestingStepId(null);
+    }
+  }
+
   if (loading) {
     return <div className="loading">Loading schedule…</div>;
   }
@@ -105,6 +134,13 @@ export default function SchedulePage() {
 
         <p className="help-text" style={{ marginBottom: "1rem" }}>
           Available variables: {MESSAGE_VARIABLES.join(", ")}
+          {testPhone && (
+            <>
+              {" "}
+              · Test SMS sends to <strong>{testPhone}</strong> (set{" "}
+              <code>SMS_TEST_PHONE_NUMBER</code> in env to change)
+            </>
+          )}
         </p>
 
         {steps.length === 0 ? (
@@ -151,6 +187,14 @@ export default function SchedulePage() {
                     />
                     Active
                   </label>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={testingStepId === step.id}
+                    onClick={() => handleTestSms(step)}
+                  >
+                    {testingStepId === step.id ? "Sending…" : "Send test SMS"}
+                  </button>
                   <button
                     type="button"
                     className="btn btn-danger"

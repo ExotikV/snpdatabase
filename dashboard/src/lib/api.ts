@@ -62,6 +62,27 @@ export function sendReminder(clientId?: string) {
   });
 }
 
+export function fetchTestPhone() {
+  return apiFetch<{ testPhone: string }>("api-test-sms");
+}
+
+export function sendTestSms(payload: {
+  message_body: string;
+  days_since_last_detail: number;
+}) {
+  return apiFetch<TestSmsResult>("api-test-sms", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface TestSmsResult {
+  ok: boolean;
+  to?: string;
+  body?: string;
+  reason?: string;
+}
+
 export interface StatsResponse {
   totalBookings: number;
   bySource: { source: string; label: string; count: number; percentage: number }[];
