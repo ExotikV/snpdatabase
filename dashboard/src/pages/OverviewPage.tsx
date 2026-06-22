@@ -111,7 +111,12 @@ export default function OverviewPage() {
             </div>
           </div>
 
-          <h2 className="section-title">SMS performance by track</h2>
+          <h2 className="section-title">SMS &amp; QR performance</h2>
+          <p className="muted section-intro">
+            Conversion rate = bookings from that channel ÷ SMS sent (QR has no send count).
+            Bookings and revenue are counted when checkout completes, not when the appointment
+            happens.
+          </p>
           <div className="panel">
             <table className="stats-table">
               <thead>
@@ -132,7 +137,7 @@ export default function OverviewPage() {
                     <td>{row.sent}</td>
                     <td>{row.failed}</td>
                     <td>{row.bookings}</td>
-                    <td>{row.conversionRate}%</td>
+                    <td>{row.conversionRate == null ? "—" : `${row.conversionRate}%`}</td>
                     <td>{formatCad(row.bookedCents)}</td>
                     <td>{formatCad(row.actualCents)}</td>
                   </tr>
@@ -141,14 +146,18 @@ export default function OverviewPage() {
                   <td>
                     <strong>All SMS</strong>
                   </td>
-                  <td>
+                    <td>
                     <strong>{stats.sms.sent}</strong>
                   </td>
                   <td>
                     <strong>{stats.sms.failed}</strong>
                   </td>
                   <td>
-                    <strong>{stats.sms.converted}</strong>
+                    <strong>
+                      {stats.sms.byTrack
+                        .filter((row) => row.triggerType !== "qr_code")
+                        .reduce((sum, row) => sum + row.bookings, 0)}
+                    </strong>
                   </td>
                   <td>
                     <strong>{stats.sms.conversionRate}%</strong>

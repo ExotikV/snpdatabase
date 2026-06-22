@@ -244,7 +244,7 @@ export interface StatsResponse {
       failed: number;
       converted: number;
       bookings: number;
-      conversionRate: number;
+      conversionRate: number | null;
       bookedCents: number;
       actualCents: number;
     }[];
