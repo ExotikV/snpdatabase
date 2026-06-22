@@ -8,7 +8,8 @@
     "check-eligibility": "node check_eligibility.js",
     "send-reminders": "node send_reminders.js",
     "match-conversions": "node match_conversions.js",
-    "diagnose-booking-attempts": "node diagnose_booking_attempts.js"
+    "diagnose-booking-attempts": "node diagnose_booking_attempts.js",
+    "diagnose-eligibility": "node diagnose_eligibility.js"
   },
   "engines": {
     "node": ">=18"

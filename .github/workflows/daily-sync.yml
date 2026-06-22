@@ -5,13 +5,12 @@ name: daily-sync
 
 on:
   schedule:
-    # 10pm Eastern during EDT (UTC-4) = 02:00 UTC. GitHub Actions cron uses UTC only and does
-    # not auto-adjust for daylight saving time.
-    # When Eastern Standard Time begins (clocks fall back, roughly early November): change to
-    # '0 3 * * *' (10pm EST = 03:00 UTC).
-    # When Eastern Daylight Time begins again (clocks spring forward, roughly early March):
-    # change back to '0 2 * * *'.
-    - cron: "0 2 * * *"
+    # TEMPORARY TEST — scheduled for ~00:50 UTC on 2026-06-22. Revert to production after confirming:
+    #   - cron: "0 2 * * *"   (10pm Eastern during EDT)
+    # GitHub may start scheduled runs 5–15 minutes after the cron minute; must be pushed to default branch.
+    - cron: "50 0 * * *"
+    # Production (restore this, remove line above):
+    # - cron: "0 2 * * *"
   workflow_dispatch:
 
 jobs:
@@ -39,6 +38,20 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Verify required secrets are configured
+        run: |
+          missing=""
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SQUARE_ACCESS_TOKEN SQUARE_ENVIRONMENT TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_PHONE_NUMBER; do
+            if [ -z "${!name}" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing or empty GitHub Actions secrets:$missing"
+            echo "Add each name under Settings → Secrets and variables → Actions → Repository secrets (not Variables)."
+            exit 1
+          fi
 
       - name: Pull Square data into Supabase
         run: node pull.js

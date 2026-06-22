@@ -435,15 +435,19 @@ The repo includes `.github/workflows/daily-sync.yml`, which runs all three backe
 
 #### Required GitHub Actions secrets
 
-Confirm these already exist under **Settings → Secrets and variables → Actions** in your GitHub repo (names must match exactly):
+Add these as **Repository secrets** (not Variables) under **Settings → Secrets and variables → Actions → New repository secret**. Names must match exactly:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SQUARE_ACCESS_TOKEN`
-- `SQUARE_ENVIRONMENT`
+- `SQUARE_ENVIRONMENT` — use `production` or `sandbox`
 - `TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_PHONE_NUMBER`
+
+If a secret is missing or empty, the workflow fails at **Verify required secrets are configured** (or `pull.js` with the same variable names). Secrets are not read from your local `.env` file in CI — only from GitHub.
+
+**Fork note:** scheduled and manual runs on a fork do not receive the upstream repo’s secrets; add secrets on the repo where the workflow runs.
 
 #### First-time setup and manual test
 
