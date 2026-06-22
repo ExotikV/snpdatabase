@@ -320,7 +320,7 @@ export default function BulkSmsPage() {
 
       <div className="panel" style={{ marginBottom: "1.25rem" }}>
         <h2 style={{ marginTop: 0 }}>Message</h2>
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+        <div className="tab-row">
           <button
             type="button"
             className={activeMessageLanguage === "en" ? "btn" : "btn btn-secondary"}

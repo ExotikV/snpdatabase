@@ -344,7 +344,7 @@ export default function SchedulePage() {
 
   return (
     <>
-      <div className="inline-actions" style={{ marginBottom: "1rem" }}>
+      <div className="tab-row">
         <button
           type="button"
           className={activeTopTrack === "maintenance" ? "btn" : "btn btn-secondary"}
@@ -362,7 +362,7 @@ export default function SchedulePage() {
       </div>
 
       {activeTopTrack === "general" && (
-        <div className="inline-actions" style={{ marginBottom: "1rem" }}>
+        <div className="tab-row">
           <button
             type="button"
             className={activeGeneralVariant === "general" ? "btn" : "btn btn-secondary"}
@@ -382,7 +382,7 @@ export default function SchedulePage() {
         </div>
       )}
 
-      <div className="inline-actions" style={{ marginBottom: "1rem" }}>
+      <div className="tab-row">
         <button
           type="button"
           className={activeLanguage === "en" ? "btn" : "btn btn-secondary"}

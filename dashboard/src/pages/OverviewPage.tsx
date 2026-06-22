@@ -153,7 +153,7 @@ export default function OverviewPage() {
           )}
 
           <h2 className="section-title">SMS &amp; QR performance</h2>
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+          <div className="tab-row">
             <button
               type="button"
               className={performanceTab === "sms" ? "btn" : "btn btn-secondary"}
@@ -173,8 +173,9 @@ export default function OverviewPage() {
           {performanceTab === "sms" ? (
             <>
               <p className="muted section-intro">
-                Conversion rate = website bookings from that SMS track ÷ SMS sent. Bookings are
-                counted at checkout.
+                Conversion rate = website bookings from that SMS track ÷ SMS sent. Includes
+                automated reminders and <strong>bulk manual</strong> sends. Bookings are counted at
+                checkout.
               </p>
               <div className="panel">
                 <table className="stats-table">
@@ -322,8 +323,8 @@ export default function OverviewPage() {
             {stats.trend.length === 0 ? (
               <p className="muted">No booking data yet.</p>
             ) : (
-              <div style={{ width: "100%", height: 320 }}>
-                <ResponsiveContainer>
+              <div className="chart-container">
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={stats.trend}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
