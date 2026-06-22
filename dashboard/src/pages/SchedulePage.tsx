@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  MESSAGE_VARIABLES,
+  MESSAGE_VARIABLES_EN,
+  MESSAGE_VARIABLES_FR,
   ScheduleStep,
   TestSmsClient,
   createScheduleStep,
@@ -10,8 +11,7 @@ import {
   saveSchedule,
   sendTestSms,
 } from "../lib/api";
-import { formatDetailDate, toDateInputValue } from "../../../lib/message-template.js";
-import { formatServiceLabel } from "../../../lib/service-labels.js";
+import { getFirstName, renderMessageTemplate, toDateInputValue } from "../../../lib/message-template.js";
 
 type Track = "maintenance" | "general";
 
@@ -62,15 +62,14 @@ function previewMessage(
     daysSince: number;
   },
 ) {
-  const firstName = vars.name.trim().split(/\s+/)[0] || "there";
-  const service = formatServiceLabel(vars.rawService);
-  return template
-    .replace(/\{name\}/g, vars.name)
-    .replace(/\{first_name\}/g, firstName)
-    .replace(/\{service\}/g, service)
-    .replace(/\{last_detail_date\}/g, formatDetailDate(vars.lastDetailDate))
-    .replace(/\{days_since\}/g, String(vars.daysSince))
-    .replace(/\{booking_url\}/g, "https://example.com/book?ref=test");
+  return renderMessageTemplate(template, {
+    name: vars.name,
+    firstName: getFirstName(vars.name),
+    serviceType: vars.rawService,
+    lastDetailDate: vars.lastDetailDate,
+    daysSince: vars.daysSince,
+    bookingUrl: "https://example.com/book?ref=test",
+  });
 }
 
 export default function SchedulePage() {
@@ -430,7 +429,11 @@ export default function SchedulePage() {
           </div>
 
           <p className="help-text" style={{ marginBottom: "1rem" }}>
-            Available variables: {MESSAGE_VARIABLES.join(", ")}. Changes save automatically.
+            English variables: {MESSAGE_VARIABLES_EN.join(", ")}
+            <br />
+            French variables: {MESSAGE_VARIABLES_FR.join(", ")}
+            <br />
+            Changes save automatically.
           </p>
 
           {steps.length === 0 ? (

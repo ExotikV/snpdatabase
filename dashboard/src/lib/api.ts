@@ -241,11 +241,8 @@ export interface SendResult {
 
 export const REFRESH_MS = 60 * 60 * 1000;
 
-export const MESSAGE_VARIABLES = [
-  "{first_name}",
-  "{name}",
-  "{service}",
-  "{last_detail_date}",
-  "{days_since}",
-  "{booking_url}",
-];
+export {
+  MESSAGE_VARIABLES,
+  MESSAGE_VARIABLES_EN,
+  MESSAGE_VARIABLES_FR,
+} from "../../../lib/message-variables.js";
