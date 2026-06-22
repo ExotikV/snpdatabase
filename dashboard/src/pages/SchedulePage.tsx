@@ -10,7 +10,7 @@ import {
   saveSchedule,
   sendTestSms,
 } from "../lib/api";
-import { formatDetailDate } from "../../../lib/message-template.js";
+import { formatDetailDate, toDateInputValue } from "../../../lib/message-template.js";
 import { formatServiceLabel } from "../../../lib/service-labels.js";
 
 type Track = "maintenance" | "general";
@@ -28,11 +28,6 @@ const TRACK_DESCRIPTIONS: Record<Track, string> = {
   general:
     "Regular detail — all cities. Anyone not on the maintenance track (any location, past the 60-day window, or no recent detail).",
 };
-
-function toDateInputValue(iso: string | null) {
-  if (!iso) return "";
-  return iso.slice(0, 10);
-}
 
 function daysSinceDate(dateValue: string) {
   if (!dateValue) return 30;

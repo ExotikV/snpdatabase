@@ -1,4 +1,5 @@
 import { jsonResponse, parseJsonBody, withAuth } from "../../lib/auth.js";
+import { toDateInputValue } from "../../lib/dates.js";
 import { getSupabase } from "../../lib/supabase.js";
 import { getTestPhoneNumber, sendTestReminderSms } from "../../lib/sms.js";
 
@@ -50,7 +51,7 @@ async function loadTestClients(supabase, search) {
 
   return clients.map((client) => {
     const last = latestByClient.get(client.id);
-    const lastDetailDate = last?.completedAt?.toISOString() ?? null;
+    const lastDetailDate = last ? toDateInputValue(last.completedAt) : null;
     const daysSince = last
       ? daysBetween(last.completedAt, now)
       : null;
