@@ -4,17 +4,19 @@ Internal dashboard and Netlify functions for **maintenance detail reminders** �
 
 ## How it works
 
-1. Clients are enrolled in `maintenance_enrollment` (maintenance program).
-2. After their last completed detail (`details_completed`), reminders fire on your configured schedule (e.g. day 30, 44, 51, 59 — all before the 60-day full-price cutoff).
-3. Each SMS includes a tracked booking URL: `https://your-site/book?ref={sms_log_id}&source=sms_reminder`
-4. When someone books, your website writes to `booking_attempts` with `source` (`direct`, `qr_code`, or `sms_reminder`) and `ref` (for SMS conversions).
-5. The scheduled function matches conversions and marks `sms_log.converted = true`.
+1. Every client (except opted-out) is automatically on an SMS track — no manual enrollment.
+2. **Maintenance track**: service-area city + last detail within 60 days → maintenance reminder sequence.
+3. **General track**: everyone else → separate configurable sequence.
+4. After their last completed detail (or account creation if no detail yet), reminders fire on the schedule for their track.
+5. Each SMS includes a tracked booking URL with `source=sms_reminder` or `source=general_reminder`.
+6. When someone books, your website writes to `booking_attempts` with the matching `source` and `ref`.
+7. The scheduled function matches conversions and marks `sms_log.converted = true`.
 
 ## Setup
 
 ### 1. Supabase migration
 
-Run `schema/message_body.sql` and `schema/client_city.sql` in the Supabase SQL Editor.
+Run `schema/message_body.sql`, `schema/client_city.sql`, and `schema/reminder_schedule_track.sql` in the Supabase SQL Editor.
 
 ### 2. Environment variables
 
@@ -60,19 +62,24 @@ npm run sync              # full sync (customers + completed bookings)
 npm run sync:customers    # customers/cities only (faster)
 ```
 
-On the **Enrollments** page, click **Sync from Square** to pull the latest data. Manual city edits remain available if a Square profile has no address.
+On the **Clients** page, click **Sync from Square** to pull the latest data. Manual city edits remain available if a Square profile has no address.
 
-## Service area (enrollment eligibility)
+## SMS tracks
 
-Only clients whose city matches one of the configured service-area cities may enroll. Cities are populated automatically from Square; use manual edits only as a fallback.
+| Track | Who | Schedule tab |
+|-------|-----|--------------|
+| **Maintenance** | Service-area cities only + detail within last 60 days | Maintenance sequence |
+| **General** | Regular detail — **all cities**, no location limit | General sequence |
 
-City matching is accent-insensitive and handles common variants (e.g. Saint/St, apostrophes).
+## Service area (maintenance track only)
+
+The city list in `lib/service-area.js` applies **only** to maintenance-detail reminders. General regular-detail reminders are sent to clients in any city.
 
 ## Dashboard pages
 
 - **Overview** — booking source breakdown, trend chart, SMS conversion stats, recent bookings
-- **Reminder schedule** — edit days + fully customizable message templates with variables
-- **Enrollments** — sync cities from Square, enroll/unenroll (blocked if city not in service area)
+- **Reminder schedule** — edit maintenance and general sequences separately
+- **Clients** — view SMS track per client, sync cities from Square
 - **Send now** — manually trigger reminders for eligible clients
 - **SMS log** — sent/failed/converted history
 
@@ -82,7 +89,8 @@ City matching is accent-insensitive and handles common variants (e.g. Saint/St, 
 |----------------|---------|
 | `direct` | Website booking (no tracking ref) |
 | `qr_code` | QR code maintenance booking |
-| `sms_reminder` | Booking from SMS link (`ref` = `sms_log.id`) |
+| `sms_reminder` | Booking from maintenance SMS link (`ref` = `sms_log.id`) |
+| `general_reminder` | Booking from general SMS link (`ref` = `sms_log.id`) |
 
 ## Message variables
 

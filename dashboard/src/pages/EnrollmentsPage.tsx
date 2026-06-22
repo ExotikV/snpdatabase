@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   EnrollmentClient,
-  enrollClient,
   fetchEnrollments,
   syncFromSquare,
-  unenrollClient,
   updateClientCity,
 } from "../lib/api";
 
@@ -16,7 +14,7 @@ export default function EnrollmentsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [filter, setFilter] = useState<"all" | "eligible" | "enrolled">("all");
+  const [filter, setFilter] = useState<"all" | "maintenance" | "general">("all");
   const [cityDrafts, setCityDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -29,7 +27,7 @@ export default function EnrollmentsPage() {
         Object.fromEntries(data.clients.map((client) => [client.clientId, client.city ?? ""])),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load enrollments");
+      setError(err instanceof Error ? err.message : "Failed to load clients");
     } finally {
       setLoading(false);
     }
@@ -41,8 +39,8 @@ export default function EnrollmentsPage() {
 
   const filtered = useMemo(() => {
     return clients.filter((client) => {
-      if (filter === "eligible") return client.cityEligible;
-      if (filter === "enrolled") return client.enrolled;
+      if (filter === "maintenance") return client.smsTrack === "maintenance";
+      if (filter === "general") return client.smsTrack === "general";
       return true;
     });
   }, [clients, filter]);
@@ -57,37 +55,6 @@ export default function EnrollmentsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update city");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handleEnroll(clientId: string) {
-    setBusyId(clientId);
-    setNotice(null);
-    setError(null);
-    try {
-      await enrollClient(clientId);
-      setNotice("Client enrolled in maintenance program.");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to enroll");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handleUnenroll(clientId: string) {
-    if (!window.confirm("Remove this client from the maintenance program?")) return;
-    setBusyId(clientId);
-    setNotice(null);
-    setError(null);
-    try {
-      await unenrollClient(clientId);
-      setNotice("Client unenrolled.");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to unenroll");
     } finally {
       setBusyId(null);
     }
@@ -112,15 +79,15 @@ export default function EnrollmentsPage() {
   }
 
   if (loading) {
-    return <div className="loading">Loading enrollments…</div>;
+    return <div className="loading">Loading clients…</div>;
   }
 
   return (
     <>
       <p className="muted" style={{ marginTop: 0 }}>
-        Cities are pulled from Square customer addresses automatically. Only clients in an
-        eligible city can enroll. Use manual city edits below only if Square is missing an
-        address.
+        All clients receive SMS reminders unless opted out. <strong>Maintenance</strong> track =
+        service-area city + detail within 60 days. <strong>General</strong> track = regular detail
+        reminders for everyone else, in any city.
       </p>
 
       {error && <div className="error-banner">{error}</div>}
@@ -129,7 +96,7 @@ export default function EnrollmentsPage() {
       <div className="panel">
         <details style={{ marginBottom: "1rem" }}>
           <summary style={{ cursor: "pointer", fontWeight: 600 }}>
-            {eligibleCities.length} eligible cities
+            {eligibleCities.length} service-area cities (maintenance track only — general has no city limit)
           </summary>
           <p className="help-text" style={{ marginTop: "0.5rem" }}>
             {eligibleCities.join(", ")}
@@ -144,8 +111,8 @@ export default function EnrollmentsPage() {
             Show{" "}
             <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
               <option value="all">All clients</option>
-              <option value="eligible">Eligible cities only</option>
-              <option value="enrolled">Enrolled only</option>
+              <option value="maintenance">Maintenance track</option>
+              <option value="general">General track</option>
             </select>
           </label>
         </div>
@@ -156,9 +123,8 @@ export default function EnrollmentsPage() {
               <th>Client</th>
               <th>Phone</th>
               <th>City</th>
-              <th>Area eligible</th>
-              <th>Enrolled</th>
-              <th></th>
+              <th>SMS track</th>
+              <th>Days since last detail</th>
             </tr>
           </thead>
           <tbody>
@@ -186,49 +152,21 @@ export default function EnrollmentsPage() {
                     disabled={busyId === client.clientId}
                     onClick={() => handleSaveCity(client.clientId)}
                   >
-                    Save city
+                    Save city override
                   </button>
                 </td>
                 <td>
-                  {client.cityEligible ? (
-                    <span className="badge badge-sent">yes</span>
+                  {client.optedOut ? (
+                    <span className="badge badge-failed">Opted out</span>
                   ) : (
-                    <span className="badge badge-failed">no</span>
-                  )}
-                </td>
-                <td>
-                  {client.enrolled ? (
-                    <span className="badge badge-converted">yes</span>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td>
-                  {client.enrolled ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      disabled={busyId === client.clientId}
-                      onClick={() => handleUnenroll(client.clientId)}
+                    <span
+                      className={`badge ${client.smsTrack === "maintenance" ? "badge-converted" : "badge-pending"}`}
                     >
-                      Unenroll
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={busyId === client.clientId || !client.cityEligible}
-                      onClick={() => handleEnroll(client.clientId)}
-                      title={
-                        client.cityEligible
-                          ? "Enroll in maintenance program"
-                          : "City not in service area"
-                      }
-                    >
-                      Enroll
-                    </button>
+                      {client.smsTrackLabel}
+                    </span>
                   )}
                 </td>
+                <td>{client.daysSinceLastDetail ?? "—"}</td>
               </tr>
             ))}
           </tbody>

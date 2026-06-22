@@ -45,7 +45,8 @@ export default function SmsLogPage() {
           <table>
             <thead>
               <tr>
-                <th>Client</th>
+                <th>Track</th>
+              <th>Client</th>
                 <th>Phone</th>
                 <th>Step</th>
                 <th>Status</th>
@@ -57,6 +58,7 @@ export default function SmsLogPage() {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id}>
+                  <td>{row.trackLabel}</td>
                   <td>{row.clientName ?? "—"}</td>
                   <td>{row.phone ?? "—"}</td>
                   <td>{row.sequenceNumber ?? "—"}</td>

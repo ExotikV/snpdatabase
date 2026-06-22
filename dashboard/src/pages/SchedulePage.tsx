@@ -10,10 +10,24 @@ import {
   sendTestSms,
 } from "../lib/api";
 
-const DEFAULT_MESSAGE =
-  "Hi {first_name}, it has been {days_since} days since your last {service} on {last_detail_date}. Book your maintenance detail here: {booking_url}";
+type Track = "maintenance" | "general";
+
+const DEFAULT_MESSAGES: Record<Track, string> = {
+  maintenance:
+    "Hi {first_name}, it has been {days_since} days since your last {service} on {last_detail_date}. Book your maintenance detail here: {booking_url}",
+  general:
+    "Hi {first_name}, book your next SNP Detailing visit here: {booking_url}",
+};
+
+const TRACK_DESCRIPTIONS: Record<Track, string> = {
+  maintenance:
+    "Maintenance detail — service-area cities only, and last detail within 60 days.",
+  general:
+    "Regular detail — all cities. Anyone not on the maintenance track (any location, past the 60-day window, or no recent detail).",
+};
 
 export default function SchedulePage() {
+  const [activeTrack, setActiveTrack] = useState<Track>("maintenance");
   const [steps, setSteps] = useState<ScheduleStep[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -22,14 +36,15 @@ export default function SchedulePage() {
   const [testPhone, setTestPhone] = useState<string | null>(null);
   const [testingStepId, setTestingStepId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (track: Track) => {
     setError(null);
+    setLoading(true);
     try {
       const [scheduleData, testPhoneData] = await Promise.all([
-        fetchSchedule(),
+        fetchSchedule(track),
         fetchTestPhone(),
       ]);
-      setSteps(scheduleData.steps);
+      setSteps(scheduleData.steps.filter((step) => step.track === track));
       setTestPhone(testPhoneData.testPhone);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load schedule");
@@ -39,8 +54,8 @@ export default function SchedulePage() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load(activeTrack);
+  }, [activeTrack, load]);
 
   function updateStep(id: string, patch: Partial<ScheduleStep>) {
     setSteps((current) => current.map((step) => (step.id === id ? { ...step, ...patch } : step)));
@@ -53,7 +68,7 @@ export default function SchedulePage() {
     try {
       await saveSchedule(steps);
       setMessage("Schedule saved.");
-      await load();
+      await load(activeTrack);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -65,9 +80,10 @@ export default function SchedulePage() {
     setError(null);
     try {
       const { step } = await createScheduleStep({
-        days_since_last_detail: 30,
+        track: activeTrack,
+        days_since_last_detail: activeTrack === "maintenance" ? 30 : 60,
         active: true,
-        message_body: DEFAULT_MESSAGE,
+        message_body: DEFAULT_MESSAGES[activeTrack],
       });
       setSteps((current) => [...current, step]);
     } catch (err) {
@@ -92,8 +108,9 @@ export default function SchedulePage() {
     setMessage(null);
     try {
       const result = await sendTestSms({
-        message_body: step.message_body ?? DEFAULT_MESSAGE,
+        message_body: step.message_body ?? DEFAULT_MESSAGES[activeTrack],
         days_since_last_detail: step.days_since_last_detail,
+        track: activeTrack,
       });
       if (result.ok) {
         setMessage(`Test SMS sent to ${result.to}.`);
@@ -107,113 +124,127 @@ export default function SchedulePage() {
     }
   }
 
-  if (loading) {
-    return <div className="loading">Loading schedule…</div>;
-  }
-
   return (
     <>
+      <div className="inline-actions" style={{ marginBottom: "1rem" }}>
+        <button
+          type="button"
+          className={activeTrack === "maintenance" ? "btn" : "btn btn-secondary"}
+          onClick={() => setActiveTrack("maintenance")}
+        >
+          Maintenance sequence
+        </button>
+        <button
+          type="button"
+          className={activeTrack === "general" ? "btn" : "btn btn-secondary"}
+          onClick={() => setActiveTrack("general")}
+        >
+          General sequence
+        </button>
+      </div>
+
       <p className="muted" style={{ marginTop: 0 }}>
-        Maintenance detail pricing applies within 60 days of the last detail. Set each reminder
-        step to fire after X days since their last completed service. Each SMS includes a tracked
-        booking link ({`{booking_url}`}) with a unique ref for conversion attribution.
+        {TRACK_DESCRIPTIONS[activeTrack]} All clients receive SMS on one track or the other —
+        never both at once.
       </p>
 
       {error && <div className="error-banner">{error}</div>}
       {message && <div className="panel" style={{ background: "#ecfdf3" }}>{message}</div>}
 
-      <div className="panel">
-        <div className="inline-actions" style={{ marginBottom: "1rem" }}>
-          <button type="button" className="btn btn-secondary" onClick={handleAddStep}>
-            Add step
-          </button>
-          <button type="button" className="btn" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save all changes"}
-          </button>
-        </div>
+      {loading ? (
+        <div className="loading">Loading schedule…</div>
+      ) : (
+        <div className="panel">
+          <div className="inline-actions" style={{ marginBottom: "1rem" }}>
+            <button type="button" className="btn btn-secondary" onClick={handleAddStep}>
+              Add step
+            </button>
+            <button type="button" className="btn" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save all changes"}
+            </button>
+          </div>
 
-        <p className="help-text" style={{ marginBottom: "1rem" }}>
-          Available variables: {MESSAGE_VARIABLES.join(", ")}
-          {testPhone && (
-            <>
-              {" "}
-              · Test SMS sends to <strong>{testPhone}</strong> (set{" "}
-              <code>SMS_TEST_PHONE_NUMBER</code> in env to change)
-            </>
-          )}
-        </p>
+          <p className="help-text" style={{ marginBottom: "1rem" }}>
+            Available variables: {MESSAGE_VARIABLES.join(", ")}
+            {testPhone && (
+              <>
+                {" "}
+                · Test SMS sends to <strong>{testPhone}</strong>
+              </>
+            )}
+          </p>
 
-        {steps.length === 0 ? (
-          <p className="muted">No reminder steps configured.</p>
-        ) : (
-          steps
-            .slice()
-            .sort((a, b) => a.sequence_number - b.sequence_number)
-            .map((step) => (
-              <div className="schedule-step" key={step.id}>
-                <div className="schedule-step-header">
-                  <label>
-                    Step #
-                    <input
-                      type="number"
-                      min={1}
-                      value={step.sequence_number}
-                      onChange={(e) =>
-                        updateStep(step.id, { sequence_number: Number(e.target.value) })
-                      }
-                      style={{ width: 70, marginLeft: 8 }}
+          {steps.length === 0 ? (
+            <p className="muted">No steps configured for this sequence.</p>
+          ) : (
+            steps
+              .slice()
+              .sort((a, b) => a.sequence_number - b.sequence_number)
+              .map((step) => (
+                <div className="schedule-step" key={step.id}>
+                  <div className="schedule-step-header">
+                    <label>
+                      Step #
+                      <input
+                        type="number"
+                        min={1}
+                        value={step.sequence_number}
+                        onChange={(e) =>
+                          updateStep(step.id, { sequence_number: Number(e.target.value) })
+                        }
+                        style={{ width: 70, marginLeft: 8 }}
+                      />
+                    </label>
+                    <label>
+                      Days since last detail
+                      <input
+                        type="number"
+                        min={1}
+                        value={step.days_since_last_detail}
+                        onChange={(e) =>
+                          updateStep(step.id, {
+                            days_since_last_detail: Number(e.target.value),
+                          })
+                        }
+                        style={{ width: 80, marginLeft: 8 }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={step.active}
+                        onChange={(e) => updateStep(step.id, { active: e.target.checked })}
+                      />
+                      Active
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={testingStepId === step.id}
+                      onClick={() => handleTestSms(step)}
+                    >
+                      {testingStepId === step.id ? "Sending…" : "Send test SMS"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => handleDelete(step.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <label className="form-row">
+                    Message
+                    <textarea
+                      value={step.message_body ?? ""}
+                      onChange={(e) => updateStep(step.id, { message_body: e.target.value })}
                     />
                   </label>
-                  <label>
-                    Days since last detail
-                    <input
-                      type="number"
-                      min={1}
-                      max={59}
-                      value={step.days_since_last_detail}
-                      onChange={(e) =>
-                        updateStep(step.id, {
-                          days_since_last_detail: Number(e.target.value),
-                        })
-                      }
-                      style={{ width: 80, marginLeft: 8 }}
-                    />
-                  </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={step.active}
-                      onChange={(e) => updateStep(step.id, { active: e.target.checked })}
-                    />
-                    Active
-                  </label>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={testingStepId === step.id}
-                    onClick={() => handleTestSms(step)}
-                  >
-                    {testingStepId === step.id ? "Sending…" : "Send test SMS"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={() => handleDelete(step.id)}
-                  >
-                    Delete
-                  </button>
                 </div>
-                <label className="form-row">
-                  Message
-                  <textarea
-                    value={step.message_body ?? ""}
-                    onChange={(e) => updateStep(step.id, { message_body: e.target.value })}
-                  />
-                </label>
-              </div>
-            ))
-        )}
-      </div>
+              ))
+          )}
+        </div>
+      )}
     </>
   );
 }

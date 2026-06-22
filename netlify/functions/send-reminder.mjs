@@ -1,7 +1,7 @@
 import { withAuth, jsonResponse, parseJsonBody } from "../../lib/auth.js";
 import { getSupabase } from "../../lib/supabase.js";
 import { getEligibleClients } from "../../lib/eligibility.js";
-import { sendMaintenanceReminderToClient } from "../../lib/sms.js";
+import { sendReminderToClient, sendReminders } from "../../lib/sms.js";
 
 export const handler = withAuth(async (event) => {
   if (event.httpMethod !== "POST") {
@@ -13,36 +13,32 @@ export const handler = withAuth(async (event) => {
     const supabase = getSupabase();
 
     if (body.clientId) {
-      const eligible = await getEligibleClients(supabase, { clientId: body.clientId });
+      const eligible = await getEligibleClients(supabase, {
+        clientId: body.clientId,
+        track: body.track,
+      });
       const client = eligible[0];
 
       if (!client) {
         return jsonResponse(
-          { error: "Client is not eligible for a reminder right now (wrong step or timing)" },
+          { error: "Client is not due for a reminder right now on their current track" },
           400,
         );
       }
 
-      const result = await sendMaintenanceReminderToClient(supabase, client);
+      const result = await sendReminderToClient(supabase, client);
       return jsonResponse(
         result.ok ? { ok: true, result } : { ok: false, result },
         result.ok ? 200 : 500,
       );
     }
 
-    const eligible = await getEligibleClients(supabase);
+    const eligible = await getEligibleClients(supabase, { track: body.track });
     if (eligible.length === 0) {
       return jsonResponse({ ok: true, sent: [], failed: [], totalEligible: 0 });
     }
 
-    const sent = [];
-    const failed = [];
-
-    for (const client of eligible) {
-      const result = await sendMaintenanceReminderToClient(supabase, client);
-      if (result.ok) sent.push(result);
-      else failed.push(result);
-    }
+    const { sent, failed } = await sendReminders(supabase, eligible);
 
     return jsonResponse({
       ok: true,

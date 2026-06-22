@@ -1,6 +1,11 @@
 import { withAuth, jsonResponse } from "../../lib/auth.js";
 import { getSupabase } from "../../lib/supabase.js";
 
+const TRIGGER_LABELS = {
+  maintenance_reminder: "Maintenance",
+  general_reminder: "General",
+};
+
 export const handler = withAuth(async () => {
   try {
     const supabase = getSupabase();
@@ -10,7 +15,7 @@ export const handler = withAuth(async () => {
       .select(
         "id, client_id, trigger_type, status, sent_at, converted, sequence_number, error_message, created_at, clients(name, phone)",
       )
-      .eq("trigger_type", "maintenance_reminder")
+      .in("trigger_type", ["maintenance_reminder", "general_reminder"])
       .order("created_at", { ascending: false })
       .limit(200);
 
@@ -21,6 +26,8 @@ export const handler = withAuth(async () => {
       clientId: row.client_id,
       clientName: row.clients?.name ?? null,
       phone: row.clients?.phone ?? null,
+      triggerType: row.trigger_type,
+      trackLabel: TRIGGER_LABELS[row.trigger_type] ?? row.trigger_type,
       status: row.status,
       sentAt: row.sent_at,
       converted: row.converted,

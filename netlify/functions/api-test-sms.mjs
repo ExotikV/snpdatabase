@@ -16,6 +16,7 @@ export const handler = withAuth(async (event) => {
       messageBody: body.message_body,
       daysSince: body.days_since_last_detail,
       phone: body.phone,
+      track: body.track ?? "maintenance",
     });
 
     if (!result.ok) {

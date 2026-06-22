@@ -26,8 +26,8 @@ export function fetchSmsLog() {
   return apiFetch<{ smsLog: SmsLogRow[] }>("api-sms-log");
 }
 
-export function fetchSchedule() {
-  return apiFetch<{ steps: ScheduleStep[] }>("api-schedule");
+export function fetchSchedule(track: "maintenance" | "general" = "maintenance") {
+  return apiFetch<{ steps: ScheduleStep[] }>(`api-schedule?track=${track}`);
 }
 
 export function saveSchedule(steps: ScheduleStep[]) {
@@ -37,7 +37,7 @@ export function saveSchedule(steps: ScheduleStep[]) {
   });
 }
 
-export function createScheduleStep(step: Partial<ScheduleStep>) {
+export function createScheduleStep(step: Partial<ScheduleStep> & { track?: string }) {
   return apiFetch<{ step: ScheduleStep }>("api-schedule", {
     method: "POST",
     body: JSON.stringify(step),
@@ -52,7 +52,7 @@ export function deleteScheduleStep(id: string) {
 }
 
 export function fetchEligible() {
-  return apiFetch<{ eligible: EligibleClient[] }>("api-eligible");
+  return apiFetch<EligibleResponse>("api-eligible");
 }
 
 export function sendReminder(clientId?: string) {
@@ -69,6 +69,7 @@ export function fetchTestPhone() {
 export function sendTestSms(payload: {
   message_body: string;
   days_since_last_detail: number;
+  track?: "maintenance" | "general";
 }) {
   return apiFetch<TestSmsResult>("api-test-sms", {
     method: "POST",
@@ -78,20 +79,6 @@ export function sendTestSms(payload: {
 
 export function fetchEnrollments() {
   return apiFetch<EnrollmentResponse>("api-enrollment");
-}
-
-export function enrollClient(clientId: string) {
-  return apiFetch<{ ok: boolean; error?: string }>("api-enrollment", {
-    method: "POST",
-    body: JSON.stringify({ clientId }),
-  });
-}
-
-export function unenrollClient(clientId: string) {
-  return apiFetch<{ ok: boolean }>("api-enrollment", {
-    method: "DELETE",
-    body: JSON.stringify({ clientId }),
-  });
 }
 
 export function updateClientCity(clientId: string, city: string) {
@@ -127,8 +114,13 @@ export interface EnrollmentClient {
   phone: string | null;
   city: string | null;
   cityEligible: boolean;
-  enrolled: boolean;
-  enrolledAt: string | null;
+  maintenanceEligible: boolean;
+  smsTrack: "maintenance" | "general" | null;
+  smsTrackLabel: string;
+  optedOut: boolean;
+  smsEnrolled: boolean;
+  daysSinceLastDetail: number | null;
+  daysSinceAnchor: number;
 }
 
 export interface EnrollmentResponse {
@@ -166,6 +158,8 @@ export interface SmsLogRow {
   clientId: string;
   clientName: string | null;
   phone: string | null;
+  triggerType: string;
+  trackLabel: string;
   status: string;
   sentAt: string | null;
   converted: boolean;
@@ -176,6 +170,7 @@ export interface SmsLogRow {
 
 export interface ScheduleStep {
   id: string;
+  track: "maintenance" | "general";
   sequence_number: number;
   days_since_last_detail: number;
   active: boolean;
@@ -188,11 +183,19 @@ export interface EligibleClient {
   name: string;
   phone: string | null;
   city: string | null;
+  track: "maintenance" | "general";
+  maintenanceEligible: boolean;
   daysSince: number;
   sequenceNumber: number;
   lastDetailDate: string;
   lastServiceType: string | null;
   messageBody: string | null;
+}
+
+export interface EligibleResponse {
+  eligible: EligibleClient[];
+  maintenance: EligibleClient[];
+  general: EligibleClient[];
 }
 
 export interface SendResult {

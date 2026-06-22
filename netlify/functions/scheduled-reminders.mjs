@@ -1,6 +1,6 @@
 import { getSupabase } from "../../lib/supabase.js";
 import { getEligibleClients } from "../../lib/eligibility.js";
-import { sendMaintenanceReminders } from "../../lib/sms.js";
+import { sendReminders } from "../../lib/sms.js";
 import { runMatchConversions } from "../../lib/conversions.js";
 import { runSquareSync } from "../../lib/square-sync.js";
 
@@ -34,7 +34,7 @@ export const handler = async () => {
       };
     }
 
-    const { sent, failed } = await sendMaintenanceReminders(supabase, eligible);
+    const { sent, failed } = await sendReminders(supabase, eligible);
 
     console.log(`[scheduled-reminders] Sent: ${sent.length}, Failed: ${failed.length}`);
     for (const item of failed) {
