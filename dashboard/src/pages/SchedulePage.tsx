@@ -35,6 +35,7 @@ export default function SchedulePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [testPhone, setTestPhone] = useState<string | null>(null);
   const [testingStepId, setTestingStepId] = useState<string | null>(null);
+  const [migrationRequired, setMigrationRequired] = useState(false);
 
   const load = useCallback(async (track: Track) => {
     setError(null);
@@ -45,6 +46,7 @@ export default function SchedulePage() {
         fetchTestPhone(),
       ]);
       setSteps(scheduleData.steps.filter((step) => step.track === track));
+      setMigrationRequired(Boolean(scheduleData.migrationRequired));
       setTestPhone(testPhoneData.testPhone);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load schedule");
@@ -147,6 +149,14 @@ export default function SchedulePage() {
         {TRACK_DESCRIPTIONS[activeTrack]} All clients receive SMS on one track or the other —
         never both at once.
       </p>
+
+      {migrationRequired && (
+        <div className="error-banner" style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}>
+          Database update needed: run <code>schema/reminder_schedule_track.sql</code> in the
+          Supabase SQL Editor to enable saving both sequences. Maintenance steps load from your
+          existing data; general steps show defaults until then.
+        </div>
+      )}
 
       {error && <div className="error-banner">{error}</div>}
       {message && <div className="panel" style={{ background: "#ecfdf3" }}>{message}</div>}

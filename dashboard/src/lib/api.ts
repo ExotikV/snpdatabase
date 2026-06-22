@@ -27,7 +27,9 @@ export function fetchSmsLog() {
 }
 
 export function fetchSchedule(track: "maintenance" | "general" = "maintenance") {
-  return apiFetch<{ steps: ScheduleStep[] }>(`api-schedule?track=${track}`);
+  return apiFetch<{ steps: ScheduleStep[]; migrationRequired?: boolean }>(
+    `api-schedule?track=${track}`,
+  );
 }
 
 export function saveSchedule(steps: ScheduleStep[]) {

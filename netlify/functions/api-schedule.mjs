@@ -4,6 +4,7 @@ import {
   getAllReminderScheduleSteps,
   getReminderSchedule,
 } from "../../lib/eligibility.js";
+import { formatScheduleError, hasTrackColumn } from "../../lib/schedule-db.js";
 import { TRACKS } from "../../lib/tracks.js";
 
 function parseTrack(value) {
@@ -19,34 +20,50 @@ export const handler = withAuth(async (event) => {
   if (method === "GET") {
     try {
       const steps = await getAllReminderScheduleSteps(supabase, queryTrack ?? undefined);
-      return jsonResponse({ steps, track: queryTrack });
+      const migrationRequired = !(await hasTrackColumn(supabase));
+      return jsonResponse({ steps, track: queryTrack, migrationRequired });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load schedule";
-      return jsonResponse({ error: message }, 500);
+      return jsonResponse({ error: formatScheduleError(error) }, 500);
     }
   }
 
   if (method === "PUT") {
     try {
+      if (!(await hasTrackColumn(supabase))) {
+        return jsonResponse(
+          {
+            error:
+              "Run schema/reminder_schedule_track.sql in Supabase SQL Editor before saving schedule changes.",
+            migrationRequired: true,
+          },
+          400,
+        );
+      }
+
       const body = parseJsonBody(event);
       if (!body?.steps || !Array.isArray(body.steps)) {
         return jsonResponse({ error: "steps array required" }, 400);
       }
 
       for (const step of body.steps) {
-        if (!step.id) {
-          return jsonResponse({ error: "Each step must have an id" }, 400);
+        if (!step.id || String(step.id).startsWith("pending-")) {
+          return jsonResponse({ error: "Each step must have a saved database id" }, 400);
+        }
+
+        const updatePayload = {
+          sequence_number: step.sequence_number,
+          days_since_last_detail: step.days_since_last_detail,
+          active: step.active,
+          message_body: step.message_body,
+        };
+
+        if (step.track) {
+          updatePayload.track = step.track;
         }
 
         const { error } = await supabase
           .from("reminder_schedule")
-          .update({
-            track: step.track ?? TRACKS.MAINTENANCE,
-            sequence_number: step.sequence_number,
-            days_since_last_detail: step.days_since_last_detail,
-            active: step.active,
-            message_body: step.message_body,
-          })
+          .update(updatePayload)
           .eq("id", step.id);
 
         if (error) throw error;
@@ -56,13 +73,23 @@ export const handler = withAuth(async (event) => {
       const updated = await getReminderSchedule(supabase, track);
       return jsonResponse({ ok: true, activeSteps: updated.length });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save schedule";
-      return jsonResponse({ error: message }, 500);
+      return jsonResponse({ error: formatScheduleError(error) }, 500);
     }
   }
 
   if (method === "POST") {
     try {
+      if (!(await hasTrackColumn(supabase))) {
+        return jsonResponse(
+          {
+            error:
+              "Run schema/reminder_schedule_track.sql in Supabase SQL Editor before adding steps.",
+            migrationRequired: true,
+          },
+          400,
+        );
+      }
+
       const body = parseJsonBody(event) ?? {};
       const track = parseTrack(body.track) ?? TRACKS.MAINTENANCE;
       const existing = await getAllReminderScheduleSteps(supabase, track);
@@ -89,8 +116,7 @@ export const handler = withAuth(async (event) => {
       if (error) throw error;
       return jsonResponse({ step: data }, 201);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to create step";
-      return jsonResponse({ error: message }, 500);
+      return jsonResponse({ error: formatScheduleError(error) }, 500);
     }
   }
 
@@ -101,12 +127,15 @@ export const handler = withAuth(async (event) => {
         return jsonResponse({ error: "id required" }, 400);
       }
 
+      if (String(body.id).startsWith("pending-")) {
+        return jsonResponse({ error: "Cannot delete unsaved default steps" }, 400);
+      }
+
       const { error } = await supabase.from("reminder_schedule").delete().eq("id", body.id);
       if (error) throw error;
       return jsonResponse({ ok: true });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to delete step";
-      return jsonResponse({ error: message }, 500);
+      return jsonResponse({ error: formatScheduleError(error) }, 500);
     }
   }
 
