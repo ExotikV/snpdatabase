@@ -10,6 +10,8 @@ import {
   saveSchedule,
   sendTestSms,
 } from "../lib/api";
+import { formatDetailDate } from "../../../lib/message-template.js";
+import { formatServiceLabel } from "../../../lib/service-labels.js";
 
 type Track = "maintenance" | "general";
 
@@ -43,17 +45,18 @@ function previewMessage(
   template: string,
   vars: {
     name: string;
-    service: string;
+    rawService: string;
     lastDetailDate: string;
     daysSince: number;
   },
 ) {
   const firstName = vars.name.trim().split(/\s+/)[0] || "there";
+  const service = formatServiceLabel(vars.rawService);
   return template
     .replace(/\{name\}/g, vars.name)
     .replace(/\{first_name\}/g, firstName)
-    .replace(/\{service\}/g, vars.service)
-    .replace(/\{last_detail_date\}/g, vars.lastDetailDate)
+    .replace(/\{service\}/g, service)
+    .replace(/\{last_detail_date\}/g, formatDetailDate(vars.lastDetailDate))
     .replace(/\{days_since\}/g, String(vars.daysSince))
     .replace(/\{booking_url\}/g, "https://example.com/book?ref=test");
 }
@@ -145,7 +148,7 @@ export default function SchedulePage() {
     () =>
       previewMessage(testPreviewTemplate, {
         name: testName,
-        service: testService,
+        rawService: testService,
         lastDetailDate: testLastDetailDate || "2026-01-01",
         daysSince: testDaysSince,
       }),
@@ -303,7 +306,7 @@ export default function SchedulePage() {
             />
           </label>
           <label>
-            Last service
+            Last service (Square name)
             <input
               type="text"
               value={testService}
