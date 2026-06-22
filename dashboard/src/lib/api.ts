@@ -1,17 +1,56 @@
+const TOKEN_KEY = "snp_dashboard_token";
+
+export function getToken(): string | null {
+  return sessionStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string) {
+  sessionStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken() {
+  sessionStorage.removeItem(TOKEN_KEY);
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> | undefined),
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(`/.netlify/functions/${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers as Record<string, string> | undefined),
-    },
+    headers,
   });
 
   const data = await res.json();
+
+  if (res.status === 401) {
+    clearToken();
+    window.location.reload();
+    throw new Error(data.error ?? "Unauthorized");
+  }
+
   if (!res.ok) {
     throw new Error(data.error ?? `Request failed (${res.status})`);
   }
   return data as T;
+}
+
+export function login(password: string) {
+  return apiFetch<{ ok: boolean }>("api-auth", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function fetchAuthStatus() {
+  return apiFetch<{ configured: boolean }>("api-auth");
 }
 
 export function fetchStats() {

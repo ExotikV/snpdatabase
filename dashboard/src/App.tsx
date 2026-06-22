@@ -1,16 +1,30 @@
+import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import BulkSmsPage from "./pages/BulkSmsPage";
 import EnrollmentsPage from "./pages/EnrollmentsPage";
+import LoginPage from "./pages/LoginPage";
 import OverviewPage from "./pages/OverviewPage";
 import SchedulePage from "./pages/SchedulePage";
 import SendNowPage from "./pages/SendNowPage";
 import SmsLogPage from "./pages/SmsLogPage";
+import { clearToken, getToken } from "./lib/api";
 
 export default function App() {
+  const [authed, setAuthed] = useState(() => Boolean(getToken()));
+
+  function handleLogout() {
+    clearToken();
+    setAuthed(false);
+  }
+
+  if (!authed) {
+    return <LoginPage onSuccess={() => setAuthed(true)} />;
+  }
+
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route element={<Layout onLogout={handleLogout} />}>
         <Route index element={<OverviewPage />} />
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="enrollments" element={<EnrollmentsPage />} />

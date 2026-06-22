@@ -28,6 +28,24 @@ select {
   font: inherit;
 }
 
+.btn-small {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.login-panel {
+  width: 100%;
+  max-width: 400px;
+}
+
 .app-shell {
   max-width: 1200px;
   margin: 0 auto;
