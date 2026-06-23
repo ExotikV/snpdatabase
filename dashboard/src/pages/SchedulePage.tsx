@@ -271,7 +271,7 @@ export default function SchedulePage() {
     try {
       const defaultDays =
         activeScheduleTrack === "maintenance"
-          ? 30
+          ? 1
           : activeScheduleTrack === "general_after_maintenance"
             ? 90
             : 60;

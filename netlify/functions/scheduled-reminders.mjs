@@ -33,14 +33,14 @@ export const handler = async () => {
   try {
     const supabase = getSupabase();
 
-    console.log("[scheduled-reminders] Syncing customer cities from Square...");
-    const squareStats = await runSquareSync({ customersOnly: true });
+    console.log("[scheduled-reminders] Syncing customers and appointments from Square...");
+    const squareStats = await runSquareSync({ recentBookingsOnly: true });
     console.log("[scheduled-reminders] Square sync:", JSON.stringify(squareStats));
 
     const conversionStats = await runMatchConversions(supabase);
     console.log("[scheduled-reminders] Conversions:", JSON.stringify(conversionStats));
 
-    const eligible = await getEligibleClients(supabase);
+    const eligible = await getEligibleClients(supabase, { syncFirst: false });
     const batch = eligible.slice(0, MAX_SCHEDULED_SMS_PER_RUN);
     const deferredByCap = Math.max(0, eligible.length - batch.length);
 

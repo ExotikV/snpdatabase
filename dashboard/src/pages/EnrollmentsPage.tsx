@@ -157,7 +157,7 @@ export default function EnrollmentsPage() {
         immediately and shown here as unsubscribed.
       </p>
       <p className="muted" style={{ marginTop: "0.5rem" }}>
-        <strong>Maintenance</strong> track = service-area only, reminders from day 30 through day 60 (unchanged).{" "}
+        <strong>Maintenance</strong> track = service-area only, first reminder <strong>1 day</strong> after a completed detail (through day 60).{" "}
         <strong>General</strong> track = outside service area from <strong>60 days</strong>;{" "}
         <strong>General (after maintenance)</strong> = service-area clients who did not book by day 60,
         starting at <strong>90 days</strong>. Each has its own message sequence on the Schedule page.

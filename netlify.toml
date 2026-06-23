@@ -13,6 +13,9 @@
 [functions."scheduled-reminders"]
   schedule = "0 * * * *"
 
+[functions."scheduled-appointment-sync"]
+  schedule = "*/15 * * * *"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

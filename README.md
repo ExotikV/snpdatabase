@@ -4,19 +4,20 @@ Internal dashboard and Netlify functions for **maintenance detail reminders** �
 
 ## How it works
 
-1. Every client (except opted-out) is automatically on an SMS track — no manual enrollment.
-2. **Maintenance track**: service-area city + last detail within 60 days → maintenance reminder sequence.
-3. **General track**: everyone else → separate configurable sequence.
-4. After their last completed detail (or account creation if no detail yet), reminders fire on the schedule for their track.
-5. Each SMS includes a tracked booking URL with `source=sms_reminder` or `source=general_reminder`.
-6. When someone books, your website writes to `booking_attempts` with the matching `source` and `ref`.
-7. The scheduled function matches conversions and marks `sms_log.converted = true`.
+1. Automated SMS (maintenance, general, after-maintenance) requires **at least one completed appointment** synced from Square.
+2. **Maintenance track**: service-area city + last detail within 60 days → maintenance reminder sequence (first step **1 day** after the detail ends). Paused while they have an upcoming Square booking.
+3. **General track**: everyone else with a completed detail → separate configurable sequence.
+4. **Phone / Square bookings** (call-ins entered in Square) sync as `manual_square` in booking attempts — separate from website bookings.
+5. After their last completed detail (or account creation if no detail yet), reminders fire on the schedule for their track unless they have an upcoming appointment or recently cancelled one.
+6. Each SMS includes a tracked booking URL with `source=sms_reminder` or `source=general_reminder`.
+7. When someone books on the website, your site writes to `booking_attempts` with the matching `source` and `ref`.
+8. The scheduled function matches conversions and marks `sms_log.converted = true`.
 
 ## Setup
 
 ### 1. Supabase migration
 
-Run `schema/message_body.sql`, `schema/client_city.sql`, and `schema/reminder_schedule_track.sql` in the Supabase SQL Editor.
+Run `schema/message_body.sql`, `schema/client_city.sql`, `schema/reminder_schedule_track.sql`, and `schema/square_appointments.sql` in the Supabase SQL Editor.
 
 ### 2. Environment variables
 
@@ -55,7 +56,7 @@ Connect this repo. Root `netlify.toml` builds the Vite dashboard and deploys fun
 
 ## Square sync
 
-Customer **city** comes from the Square customer address (`locality` field). The sync also refreshes completed bookings into `details_completed` (used for “days since last detail”).
+Customer **city** comes from the Square customer address (`locality` field). Appointment sync runs **every 15 minutes** (and on each Appointments page load): upcoming bookings are stored in `square_appointments`, completed details in `details_completed`. Cancellations remove upcoming rows and any mistaken completed rows; reschedules update times in place via the Square booking ID.
 
 ```bash
 npm run sync              # full sync (customers + completed bookings)

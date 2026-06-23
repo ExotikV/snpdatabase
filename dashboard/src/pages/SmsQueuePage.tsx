@@ -170,6 +170,13 @@ export default function SmsQueuePage() {
             <div className="card-value">{preview.summary.upcoming}</div>
             <div className="muted">Waiting for exact schedule day</div>
           </div>
+          {preview.summary.pausedForAppointments > 0 && (
+            <div className="card">
+              <div className="card-label">Paused</div>
+              <div className="card-value">{preview.summary.pausedForAppointments}</div>
+              <div className="muted">Upcoming or recently cancelled Square appointment</div>
+            </div>
+          )}
         </div>
 
         <p className="muted">

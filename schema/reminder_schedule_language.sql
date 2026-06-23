@@ -44,7 +44,7 @@ where not exists (
 
 -- French maintenance sequence (mirror default EN timing)
 insert into reminder_schedule (track, language, sequence_number, days_since_last_detail, active, message_body)
-select 'maintenance', 'fr', 1, 30, true,
+select 'maintenance', 'fr', 1, 1, true,
   'Bonjour {prenom}, ca fait {jours_depuis} jours depuis votre dernier {detail} du {date_dernier_detail}. Reservez votre entretien ici : {lien_reservation}'
 where not exists (
   select 1 from reminder_schedule where track = 'maintenance' and language = 'fr' and sequence_number = 1

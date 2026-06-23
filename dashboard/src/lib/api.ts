@@ -61,6 +61,10 @@ export function fetchBookings() {
   return apiFetch<{ bookings: BookingRow[] }>("api-bookings");
 }
 
+export function fetchUpcomingAppointments() {
+  return apiFetch<UpcomingAppointmentsResponse>("api-upcoming-appointments");
+}
+
 export function fetchSmsLog() {
   return apiFetch<{ smsLog: SmsLogRow[] }>("api-sms-log");
 }
@@ -338,6 +342,46 @@ export interface StatsResponse {
   };
 }
 
+export interface UpcomingAppointmentRow {
+  squareBookingId: string;
+  clientId: string | null;
+  clientName: string | null;
+  phone: string | null;
+  email: string | null;
+  city: string | null;
+  startAt: string;
+  daysUntil: number | null;
+  daysUntilLabel: string;
+  serviceType: string | null;
+  durationMinutes: number | null;
+  status: string;
+  statusLabel: string;
+  bookedRevenueCents: number | null;
+  catalogPriceCents: number | null;
+  priceCents: number | null;
+  priceSource: "website" | "catalog" | null;
+  bookingSource: string | null;
+  bookingSourceLabel: string | null;
+  customerNote: string | null;
+  sellerNote: string | null;
+}
+
+export interface UpcomingAppointmentsResponse {
+  generatedAt: string;
+  syncedAt: string;
+  lookaheadDays: number;
+  syncStats: Record<string, unknown> | null;
+  summary: {
+    total: number;
+    totalPriceCents: number;
+    pricedCount: number;
+    thisWeek: number;
+    today: number;
+    tomorrow: number;
+  };
+  appointments: UpcomingAppointmentRow[];
+}
+
 export interface BookingRow {
   id: string;
   source: string;
@@ -440,6 +484,7 @@ export interface SmsQueuePreview {
     dueNowWillSendThisHour: number;
     upcoming: number;
     eligibleConfirmed: number;
+    pausedForAppointments: number;
   };
   dueNow: SmsQueueRow[];
   upcoming: SmsQueueRow[];
@@ -482,6 +527,9 @@ export interface ManualBulkSmsResult {
 }
 
 export const REFRESH_MS = 60 * 60 * 1000;
+
+/** Appointments tab — syncs from Square on each load; poll more often. */
+export const APPOINTMENTS_REFRESH_MS = 15 * 60 * 1000;
 
 export {
   MESSAGE_VARIABLES,

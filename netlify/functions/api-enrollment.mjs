@@ -8,6 +8,8 @@ import {
   isMaintenanceProgramEligible,
   isWaitingForGeneralStart,
 } from "../../lib/client-tracks.js";
+import { daysSinceLastDetail as countDaysSinceDetail } from "../../lib/dates.js";
+import { getLatestCompletedDetailByClient } from "../../lib/completed-details.js";
 import { TRACK_LABELS } from "../../lib/tracks.js";
 import { LANGUAGE_LABELS, normalizeLanguage } from "../../lib/languages.js";
 import { getOptOutStatusLabel, OPT_OUT_SOURCES } from "../../lib/sms-opt-out.js";
@@ -52,13 +54,10 @@ export const handler = withAuth(async (event) => {
 
         if (detailsError) throw detailsError;
 
-        for (const row of details ?? []) {
-          if (!row.completed_at) continue;
-          const completedAt = new Date(row.completed_at);
-          const existing = latestDetailByClient.get(row.client_id);
-          if (!existing || completedAt > existing) {
-            latestDetailByClient.set(row.client_id, completedAt);
-          }
+        const now = new Date();
+        const detailMap = getLatestCompletedDetailByClient(details ?? [], now);
+        for (const [clientId, detail] of detailMap) {
+          latestDetailByClient.set(clientId, detail.completedAt);
         }
       }
 
@@ -69,7 +68,7 @@ export const handler = withAuth(async (event) => {
         const anchorDate = lastDetail ?? createdAt;
         const daysSinceAnchor = Math.floor((now - anchorDate.getTime()) / (24 * 60 * 60 * 1000));
         const daysSinceLastDetail = lastDetail
-          ? Math.floor((now - lastDetail.getTime()) / (24 * 60 * 60 * 1000))
+          ? countDaysSinceDetail(lastDetail, new Date())
           : null;
 
         const maintenanceEligible = isMaintenanceProgramEligible({

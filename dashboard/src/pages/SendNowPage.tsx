@@ -158,13 +158,15 @@ export default function SendNowPage() {
   return (
     <>
       <p className="muted" style={{ marginTop: 0 }}>
-        <strong>Maintenance</strong> reminders are limited to your service-area cities (days 30–60).{" "}
+        <strong>Maintenance</strong> reminders are limited to your service-area cities (first step at day 1, through day 60).{" "}
         <strong>General</strong> reminders go to clients outside the service area (from day 60).{" "}
         <strong>After maintenance miss</strong> is for service-area clients who did not book by day 60
         (from day 90). Automatic sends are capped at <strong>20 per hour</strong>, one sequence step
         per client at a time, on the <strong>exact schedule day only</strong> (not after it passes).
         Automated retries stop after <strong>2 failed send attempts</strong> on the same step. Texts only go out{" "}
-        <strong>1 PM – 7 PM Eastern</strong>.
+        <strong>1 PM – 7 PM Eastern</strong>. Only clients with a <strong>completed appointment</strong>{" "}
+        are eligible. Reminders <strong>pause</strong> while a client has an upcoming Square
+        appointment, and for <strong>30 days</strong> after they cancel one.
       </p>
 
       {error && <div className="error-banner">{error}</div>}
