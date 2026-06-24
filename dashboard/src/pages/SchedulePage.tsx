@@ -40,11 +40,11 @@ const DEFAULT_MESSAGES: Record<Language, Record<ScheduleTrack, string>> = {
 
 const TRACK_DESCRIPTIONS: Record<ScheduleTrack, string> = {
   maintenance:
-    "Service-area cities only, while 0–60 days since last detail. You choose the day for each step — automated texts send only when that day is reached.",
+    "Service-area cities only, while 0–60 days since last detail. Choose hours or days for each step — day steps send on that exact day; hour steps send after that many hours.",
   general:
-    "Outside service area — clients move here after 60 days. You choose the day for each step.",
+    "Outside service area — clients move here after 60 days. Choose hours or days for each step.",
   general_after_maintenance:
-    "Service-area clients who did not book during the maintenance window. You choose the day for each step.",
+    "Service-area clients who did not book during the maintenance window. Choose hours or days for each step.",
 };
 
 const AUTO_SAVE_DELAY_MS = 800;
@@ -59,6 +59,7 @@ function stepsSnapshot(steps: ScheduleStep[]) {
       language: step.language,
       sequence_number: step.sequence_number,
       days_since_last_detail: step.days_since_last_detail,
+      delay_unit: step.delay_unit ?? "days",
       active: step.active,
       message_body: step.message_body,
     })),
@@ -118,6 +119,7 @@ export default function SchedulePage() {
   const [testingStepId, setTestingStepId] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
   const [languageMigrationRequired, setLanguageMigrationRequired] = useState(false);
+  const [delayUnitMigrationRequired, setDelayUnitMigrationRequired] = useState(false);
   const lastSavedSnapshotRef = useRef("");
   const saveVersionRef = useRef(0);
   const stepsRef = useRef(steps);
@@ -145,6 +147,7 @@ export default function SchedulePage() {
       setSteps(loadedSteps);
       setMigrationRequired(Boolean(scheduleData.migrationRequired));
       setLanguageMigrationRequired(Boolean(scheduleData.languageMigrationRequired));
+      setDelayUnitMigrationRequired(Boolean(scheduleData.delayUnitMigrationRequired));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load schedule");
     } finally {
@@ -166,7 +169,7 @@ export default function SchedulePage() {
   }, [clientSearch, loadTestClients]);
 
   useEffect(() => {
-    if (loading || migrationRequired || languageMigrationRequired || steps.length === 0) {
+    if (loading || migrationRequired || languageMigrationRequired || delayUnitMigrationRequired || steps.length === 0) {
       return;
     }
 
@@ -207,7 +210,7 @@ export default function SchedulePage() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [steps, loading, migrationRequired, languageMigrationRequired]);
+  }, [steps, loading, migrationRequired, languageMigrationRequired, delayUnitMigrationRequired]);
 
   useEffect(() => {
     if (saveStatus !== "saved") return;
@@ -263,12 +266,15 @@ export default function SchedulePage() {
     if (languageMigrationRequired) {
       return "Run schema/reminder_schedule_language.sql for English/French sequences";
     }
+    if (delayUnitMigrationRequired) {
+      return "Run schema/reminder_schedule_delay_unit.sql to enable hour-based steps";
+    }
     if (saveStatus === "pending") return "Unsaved changes…";
     if (saveStatus === "saving") return "Saving…";
     if (saveStatus === "saved") return "Saved";
     if (saveStatus === "error") return error ?? "Save failed";
     return null;
-  }, [migrationRequired, languageMigrationRequired, saveStatus, error]);
+  }, [migrationRequired, languageMigrationRequired, delayUnitMigrationRequired, saveStatus, error]);
 
   async function handleAddStep() {
     setError(null);
@@ -422,6 +428,13 @@ export default function SchedulePage() {
         </div>
       )}
 
+      {delayUnitMigrationRequired && (
+        <div className="error-banner" style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}>
+          Database update needed: run <code>schema/reminder_schedule_delay_unit.sql</code> in
+          Supabase to enable hour-based steps (e.g. review link 1–2 hours after detail).
+        </div>
+      )}
+
       {error && <div className="error-banner">{error}</div>}
       {message && <div className="panel" style={{ background: "#ecfdf3" }}>{message}</div>}
 
@@ -570,18 +583,33 @@ export default function SchedulePage() {
                       />
                     </label>
                     <label>
-                      Days since last detail
+                      Send after
                       <input
                         type="number"
-                        min={1}
+                        min={(step.delay_unit ?? "days") === "hours" ? 1 : 0}
                         value={step.days_since_last_detail}
                         onChange={(e) =>
                           updateStep(step.id, {
                             days_since_last_detail: Number(e.target.value),
                           })
                         }
-                        style={{ width: 80, marginLeft: 8 }}
+                        style={{ width: 70, marginLeft: 8 }}
                       />
+                      <select
+                        value={step.delay_unit ?? "days"}
+                        onChange={(e) =>
+                          updateStep(step.id, {
+                            delay_unit: e.target.value as "hours" | "days",
+                          })
+                        }
+                        style={{ marginLeft: 8 }}
+                      >
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                      </select>
+                      <span className="muted" style={{ marginLeft: 8 }}>
+                        after last detail
+                      </span>
                     </label>
                     <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <input

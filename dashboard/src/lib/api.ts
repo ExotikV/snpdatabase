@@ -140,6 +140,7 @@ export function fetchSchedule(
     steps: ScheduleStep[];
     migrationRequired?: boolean;
     languageMigrationRequired?: boolean;
+    delayUnitMigrationRequired?: boolean;
   }>(`api-schedule?track=${track}&language=${language}`);
 }
 
@@ -582,6 +583,7 @@ export interface ScheduleStep {
   language: "en" | "fr";
   sequence_number: number;
   days_since_last_detail: number;
+  delay_unit: "hours" | "days";
   active: boolean;
   message_body: string | null;
   created_at?: string;
@@ -620,8 +622,14 @@ export interface SmsQueueRow {
   preferredLanguage: "en" | "fr";
   sequenceNumber: number;
   daysSinceLastDetail: number;
-  requiredDays: number;
-  daysUntilSend: number;
+  hoursSince?: number;
+  elapsedSinceDetail?: string;
+  requiredAmount: number;
+  delayUnit: "hours" | "days";
+  requiredDelayLabel: string;
+  requiredDays: number | null;
+  daysUntilSend: number | null;
+  timeUntilSend: number;
   lastDetailDate: string;
   lastDetailDateFormatted: string;
   lastServiceType: string | null;

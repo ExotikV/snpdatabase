@@ -11,11 +11,12 @@ import {
   DEFAULT_GENERAL_AFTER_MAINTENANCE_STEPS_EN,
   DEFAULT_GENERAL_AFTER_MAINTENANCE_STEPS_FR,
   formatScheduleError,
+  hasDelayUnitColumn,
   hasLanguageColumn,
   hasTrackColumn,
 } from "../../lib/schedule-db.js";
 import { TRACKS, MAINTENANCE_REMINDER_START_DAYS, GENERAL_REMINDER_START_DAYS, GENERAL_AFTER_MAINTENANCE_MISS_DAYS } from "../../lib/tracks.js";
-import { validateScheduleStepDays } from "../../lib/schedule-rules.js";
+import { normalizeDelayUnit, validateScheduleStepDays } from "../../lib/schedule-rules.js";
 
 function parseTrack(value) {
   if (
@@ -50,13 +51,17 @@ function defaultMessage(track, language) {
     : "Hi {first_name}, it has been {days_since} days since your last {service} on {last_detail_date}. Book your maintenance detail here: {booking_url}";
 }
 
-function buildStepUpdatePayload(step) {
+function buildStepUpdatePayload(step, { includeDelayUnit = true } = {}) {
   const updatePayload = {
     sequence_number: step.sequence_number,
     days_since_last_detail: step.days_since_last_detail,
     active: step.active,
     message_body: step.message_body,
   };
+
+  if (includeDelayUnit) {
+    updatePayload.delay_unit = normalizeDelayUnit(step.delay_unit);
+  }
 
   if (step.track) {
     updatePayload.track = step.track;
@@ -68,7 +73,7 @@ function buildStepUpdatePayload(step) {
   return updatePayload;
 }
 
-async function saveScheduleSteps(supabase, steps) {
+async function saveScheduleSteps(supabase, steps, { includeDelayUnit = true } = {}) {
   for (const step of steps) {
     if (!step.id || String(step.id).startsWith("pending-")) {
       throw new Error("Each step must have a saved database id");
@@ -102,7 +107,7 @@ async function saveScheduleSteps(supabase, steps) {
   for (const step of steps) {
     const { error } = await supabase
       .from("reminder_schedule")
-      .update(buildStepUpdatePayload(step))
+      .update(buildStepUpdatePayload(step, { includeDelayUnit }))
       .eq("id", step.id);
 
     if (error) throw error;
@@ -124,12 +129,14 @@ export const handler = withAuth(async (event) => {
       );
       const migrationRequired = !(await hasTrackColumn(supabase));
       const languageMigrationRequired = !(await hasLanguageColumn(supabase));
+      const delayUnitMigrationRequired = !(await hasDelayUnitColumn(supabase));
       return jsonResponse({
         steps,
         track: queryTrack,
         language: queryLanguage,
         migrationRequired,
         languageMigrationRequired,
+        delayUnitMigrationRequired,
       });
     } catch (error) {
       return jsonResponse({ error: formatScheduleError(error) }, 500);
@@ -155,6 +162,17 @@ export const handler = withAuth(async (event) => {
             error:
               "Run schema/reminder_schedule_language.sql in Supabase SQL Editor before saving schedule changes.",
             languageMigrationRequired: true,
+          },
+          400,
+        );
+      }
+
+      if (!(await hasDelayUnitColumn(supabase))) {
+        return jsonResponse(
+          {
+            error:
+              "Run schema/reminder_schedule_delay_unit.sql in Supabase SQL Editor before saving hour-based steps.",
+            delayUnitMigrationRequired: true,
           },
           400,
         );
@@ -202,6 +220,17 @@ export const handler = withAuth(async (event) => {
         );
       }
 
+      if (!(await hasDelayUnitColumn(supabase))) {
+        return jsonResponse(
+          {
+            error:
+              "Run schema/reminder_schedule_delay_unit.sql in Supabase SQL Editor before adding hour-based steps.",
+            delayUnitMigrationRequired: true,
+          },
+          400,
+        );
+      }
+
       const body = parseJsonBody(event) ?? {};
       const track = parseTrack(body.track) ?? TRACKS.MAINTENANCE;
       const language = normalizeLanguage(body.language ?? queryLanguage);
@@ -222,6 +251,7 @@ export const handler = withAuth(async (event) => {
               : track === TRACKS.GENERAL
                 ? GENERAL_REMINDER_START_DAYS
                 : MAINTENANCE_REMINDER_START_DAYS),
+          delay_unit: normalizeDelayUnit(body.delay_unit),
           active: body.active ?? true,
           message_body: body.message_body ?? defaultMessage(track, language),
         })
