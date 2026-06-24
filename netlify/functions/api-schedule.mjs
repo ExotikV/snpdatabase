@@ -17,6 +17,11 @@ import {
 } from "../../lib/schedule-db.js";
 import { TRACKS, MAINTENANCE_REMINDER_START_DAYS, GENERAL_REMINDER_START_DAYS, GENERAL_AFTER_MAINTENANCE_MISS_DAYS } from "../../lib/tracks.js";
 import { normalizeDelayUnit, validateScheduleStepDays } from "../../lib/schedule-rules.js";
+import {
+  createMirroredStep,
+  deleteMirroredStep,
+  mirrorScheduleStructure,
+} from "../../lib/schedule-mirror.js";
 
 function parseTrack(value) {
   if (
@@ -187,6 +192,11 @@ export const handler = withAuth(async (event) => {
 
       const track = parseTrack(body.steps[0]?.track) ?? TRACKS.MAINTENANCE;
       const language = normalizeLanguage(body.steps[0]?.language ?? queryLanguage);
+      await mirrorScheduleStructure(supabase, track, language, body.steps, {
+        defaultMessage,
+        includeDelayUnit: true,
+      });
+
       const updated = await getReminderSchedule(supabase, track, language);
       return jsonResponse({ ok: true, activeSteps: updated.length });
     } catch (error) {
@@ -259,6 +269,9 @@ export const handler = withAuth(async (event) => {
         .single();
 
       if (error) throw error;
+
+      await createMirroredStep(supabase, data, { defaultMessage, includeDelayUnit: true });
+
       return jsonResponse({ step: data }, 201);
     } catch (error) {
       return jsonResponse({ error: formatScheduleError(error) }, 500);
@@ -274,6 +287,18 @@ export const handler = withAuth(async (event) => {
 
       if (String(body.id).startsWith("pending-")) {
         return jsonResponse({ error: "Cannot delete unsaved default steps" }, 400);
+      }
+
+      const { data: step, error: fetchError } = await supabase
+        .from("reminder_schedule")
+        .select("id, track, language, sequence_number")
+        .eq("id", body.id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      if (step) {
+        await deleteMirroredStep(supabase, step);
       }
 
       const { error } = await supabase.from("reminder_schedule").delete().eq("id", body.id);

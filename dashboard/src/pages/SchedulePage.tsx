@@ -303,7 +303,7 @@ export default function SchedulePage() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this reminder step?")) return;
+    if (!window.confirm("Delete this step in both English and French?")) return;
     setError(null);
     try {
       await deleteScheduleStep(id);
@@ -557,8 +557,9 @@ export default function SchedulePage() {
             <code>{`{booking_url_after_maintenance}`}</code> to pick attribution explicitly. Each
             send gets a unique tracked ref.
             <br />
-            Changes save automatically. Clients receive the sequence matching their website language (
-            <code>clients.preferred_language</code>).
+            Changes save automatically. Step timing, order, and active status mirror between
+            English and French — edit the message text separately per language. Clients receive the
+            sequence matching their website language (<code>clients.preferred_language</code>).
           </p>
 
           {steps.length === 0 ? (
