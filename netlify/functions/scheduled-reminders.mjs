@@ -2,7 +2,11 @@ import { runMatchConversions } from "../../lib/conversions.js";
 import { getEligibleClients } from "../../lib/eligibility.js";
 import { runSquareSync } from "../../lib/square-sync.js";
 import { MAX_SCHEDULED_SMS_PER_RUN } from "../../lib/sms-cooldown.js";
-import { assertSmsSendWindow, getSmsSendWindowLabel } from "../../lib/sms-send-window.js";
+import {
+  assertSmsSendWindow,
+  getSmsSendWindowLabel,
+  isWithinSmsSendWindow,
+} from "../../lib/sms-send-window.js";
 import { isProductionSmsEnabled, sendReminders } from "../../lib/sms.js";
 import { getSupabase } from "../../lib/supabase.js";
 
@@ -16,20 +20,6 @@ export const handler = async () => {
     return { statusCode: 200, body: JSON.stringify({ ok: true, skipped: true, reason: message }) };
   }
 
-  const sendWindowGate = assertSmsSendWindow();
-  if (!sendWindowGate.ok) {
-    console.log(`[scheduled-reminders] ${sendWindowGate.reason}`);
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        ok: true,
-        skipped: true,
-        outsideSendWindow: true,
-        reason: sendWindowGate.reason,
-      }),
-    };
-  }
-
   try {
     const supabase = getSupabase();
 
@@ -41,12 +31,35 @@ export const handler = async () => {
     console.log("[scheduled-reminders] Conversions:", JSON.stringify(conversionStats));
 
     const eligible = await getEligibleClients(supabase, { syncFirst: false });
-    const batch = eligible.slice(0, MAX_SCHEDULED_SMS_PER_RUN);
-    const deferredByCap = Math.max(0, eligible.length - batch.length);
+    const inSendWindow = isWithinSmsSendWindow();
+    const sendable = inSendWindow
+      ? eligible
+      : eligible.filter((client) => client.delayUnit === "hours");
+
+    if (!inSendWindow && sendable.length === 0) {
+      const sendWindowGate = assertSmsSendWindow();
+      console.log(`[scheduled-reminders] ${sendWindowGate.reason}`);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          ok: true,
+          skipped: true,
+          outsideSendWindow: true,
+          reason: sendWindowGate.reason,
+          totalEligible: eligible.length,
+          squareStats,
+          conversionStats,
+        }),
+      };
+    }
+
+    const batch = sendable.slice(0, MAX_SCHEDULED_SMS_PER_RUN);
+    const deferredByCap = Math.max(0, sendable.length - batch.length);
 
     console.log(
-      `[scheduled-reminders] ${eligible.length} due — sending ${batch.length} now` +
+      `[scheduled-reminders] ${sendable.length} due — sending ${batch.length} now` +
         (deferredByCap > 0 ? ` (${deferredByCap} deferred — per-run cap ${MAX_SCHEDULED_SMS_PER_RUN})` : "") +
+        (inSendWindow ? "" : " (hour-based only — outside day send window)") +
         `. Send window: ${getSmsSendWindowLabel()}.`,
     );
 
@@ -56,6 +69,7 @@ export const handler = async () => {
         body: JSON.stringify({
           ok: true,
           totalEligible: eligible.length,
+          sendableCount: sendable.length,
           sentCount: 0,
           failedCount: 0,
           deferredByCap,
@@ -75,6 +89,7 @@ export const handler = async () => {
       body: JSON.stringify({
         ok: true,
         totalEligible: eligible.length,
+        sendableCount: sendable.length,
         batchSize: batch.length,
         deferredByCap,
         sentCount: sent.length,

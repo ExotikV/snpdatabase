@@ -47,8 +47,8 @@ function QueueTable({ rows }: { rows: SmsQueueRow[] }) {
             <th>Client</th>
             <th>Track</th>
             <th>Step</th>
-            <th>Days since detail</th>
-            <th>Schedule day</th>
+            <th>Since detail</th>
+            <th>Schedule</th>
             <th>When</th>
             <th>Message</th>
           </tr>
@@ -69,16 +69,17 @@ function QueueTable({ rows }: { rows: SmsQueueRow[] }) {
                 </span>
               </td>
               <td>
-                {row.daysSinceLastDetail}
+                {row.elapsedSinceDetail ?? row.daysSinceLastDetail}
                 <span className="muted" style={{ fontSize: "0.85rem", display: "block" }}>
                   since {row.lastDetailDateFormatted}
                 </span>
               </td>
               <td>
-                {row.requiredDays}
-                {row.status === "upcoming" && row.daysUntilSend > 0 && (
+                {row.requiredDelayLabel}
+                {row.status === "upcoming" && row.timeUntilSend > 0 && (
                   <span className="muted" style={{ fontSize: "0.85rem", display: "block" }}>
-                    in {row.daysUntilSend}d
+                    in {Math.ceil(row.timeUntilSend)}
+                    {row.delayUnit === "hours" ? "h" : "d"}
                   </span>
                 )}
               </td>
