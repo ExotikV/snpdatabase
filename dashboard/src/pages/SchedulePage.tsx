@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   MESSAGE_VARIABLES_EN,
   MESSAGE_VARIABLES_FR,
@@ -12,6 +12,12 @@ import {
   saveSchedule,
   sendTestSms,
 } from "../lib/api";
+import {
+  moveStepToSequenceNumber,
+  removeStepAndRenumber,
+  reorderStepsByIds,
+  sortStepsBySequence,
+} from "../lib/schedule-order";
 import { getFirstName, renderMessageTemplate, buildBookingUrl, toDateInputValue } from "../../../lib/message-template.js";
 import { getBookingSourceForTrack } from "../../../lib/tracks.js";
 
@@ -120,6 +126,8 @@ export default function SchedulePage() {
   const [migrationRequired, setMigrationRequired] = useState(false);
   const [languageMigrationRequired, setLanguageMigrationRequired] = useState(false);
   const [delayUnitMigrationRequired, setDelayUnitMigrationRequired] = useState(false);
+  const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
+  const [dragOverStepId, setDragOverStepId] = useState<string | null>(null);
   const lastSavedSnapshotRef = useRef("");
   const saveVersionRef = useRef(0);
   const stepsRef = useRef(steps);
@@ -222,6 +230,54 @@ export default function SchedulePage() {
     setSteps((current) => current.map((step) => (step.id === id ? { ...step, ...patch } : step)));
   }
 
+  const sortedSteps = useMemo(() => sortStepsBySequence(steps), [steps]);
+
+  function handleStepNumberBlur(stepId: string, rawValue: string) {
+    const parsed = Math.round(Number(rawValue));
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return;
+    }
+
+    setSteps((current) => moveStepToSequenceNumber(current, stepId, parsed));
+  }
+
+  function handleDragStart(event: DragEvent, stepId: string) {
+    event.dataTransfer.setData("text/plain", stepId);
+    event.dataTransfer.effectAllowed = "move";
+    setDraggingStepId(stepId);
+  }
+
+  function handleDragEnd() {
+    setDraggingStepId(null);
+    setDragOverStepId(null);
+  }
+
+  function handleDragOver(event: DragEvent, stepId: string) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dragOverStepId !== stepId) {
+      setDragOverStepId(stepId);
+    }
+  }
+
+  function handleDragLeave(stepId: string) {
+    if (dragOverStepId === stepId) {
+      setDragOverStepId(null);
+    }
+  }
+
+  function handleDrop(event: DragEvent, targetId: string) {
+    event.preventDefault();
+    const draggedId = event.dataTransfer.getData("text/plain");
+    if (!draggedId || draggedId === targetId) {
+      handleDragEnd();
+      return;
+    }
+
+    setSteps((current) => reorderStepsByIds(current, draggedId, targetId));
+    handleDragEnd();
+  }
+
   function handleSelectClient(clientId: string) {
     setSelectedClientId(clientId);
     if (!clientId) return;
@@ -308,7 +364,7 @@ export default function SchedulePage() {
     try {
       await deleteScheduleStep(id);
       setSteps((current) => {
-        const next = current.filter((step) => step.id !== id);
+        const next = removeStepAndRenumber(current, id);
         lastSavedSnapshotRef.current = stepsSnapshot(next);
         return next;
       });
@@ -557,32 +613,59 @@ export default function SchedulePage() {
             <code>{`{booking_url_after_maintenance}`}</code> to pick attribution explicitly. Each
             send gets a unique tracked ref.
             <br />
-            Changes save automatically. Step timing, order, and active status mirror between
-            English and French — edit the message text separately per language. Clients receive the
-            sequence matching their website language (<code>clients.preferred_language</code>).
+            Changes save automatically. Drag steps to reorder, or change step # — other steps
+            shift automatically. Timing, order, and active status mirror between English and French
+            (edit message text per language). Clients receive the sequence matching their website
+            language (<code>clients.preferred_language</code>).
           </p>
 
           {steps.length === 0 ? (
             <p className="muted">No steps configured for this sequence.</p>
           ) : (
-            steps
-              .slice()
-              .sort((a, b) => a.sequence_number - b.sequence_number)
-              .map((step) => (
-                <div className="schedule-step" key={step.id}>
-                  <div className="schedule-step-header">
-                    <label>
-                      Step #
-                      <input
-                        type="number"
-                        min={1}
-                        value={step.sequence_number}
-                        onChange={(e) =>
-                          updateStep(step.id, { sequence_number: Number(e.target.value) })
+            sortedSteps.map((step) => (
+              <div
+                className={[
+                  "schedule-step",
+                  draggingStepId === step.id ? "schedule-step--dragging" : "",
+                  dragOverStepId === step.id && draggingStepId !== step.id
+                    ? "schedule-step--drag-over"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                key={step.id}
+                onDragOver={(event) => handleDragOver(event, step.id)}
+                onDragLeave={() => handleDragLeave(step.id)}
+                onDrop={(event) => handleDrop(event, step.id)}
+              >
+                <div className="schedule-step-header">
+                  <span
+                    className="schedule-step-drag-handle"
+                    draggable
+                    onDragStart={(event) => handleDragStart(event, step.id)}
+                    onDragEnd={handleDragEnd}
+                    title="Drag to reorder"
+                    aria-label="Drag to reorder"
+                  >
+                    ⋮⋮
+                  </span>
+                  <label>
+                    Step #
+                    <input
+                      key={`seq-${step.id}-${step.sequence_number}`}
+                      type="number"
+                      min={1}
+                      max={sortedSteps.length}
+                      defaultValue={step.sequence_number}
+                      onBlur={(e) => handleStepNumberBlur(step.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.currentTarget.blur();
                         }
-                        style={{ width: 70, marginLeft: 8 }}
-                      />
-                    </label>
+                      }}
+                      style={{ width: 70, marginLeft: 8 }}
+                    />
+                  </label>
                     <label>
                       Send after
                       <input
