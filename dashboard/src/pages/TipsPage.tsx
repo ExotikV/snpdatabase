@@ -5,6 +5,7 @@ import {
   TipTodayJob,
   TipsDashboardResponse,
   createTip,
+  deleteTip,
   fetchClientTipDetails,
   fetchManualSmsClients,
   fetchTips,
@@ -77,6 +78,7 @@ export default function TipsPage() {
   const [clientSearch, setClientSearch] = useState("");
   const [clientResults, setClientResults] = useState<ManualSmsClient[]>([]);
   const [clientDetails, setClientDetails] = useState<{ detailId: string; label: string }[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -204,6 +206,21 @@ export default function TipsPage() {
       setFormError(err instanceof Error ? err.message : "Failed to save tip");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(tipId: string, label: string) {
+    if (!window.confirm(`Delete this tip?\n\n${label}`)) return;
+
+    setDeletingId(tipId);
+    setError(null);
+    try {
+      await deleteTip(tipId);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete tip");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -341,6 +358,7 @@ export default function TipsPage() {
                   <th>Job</th>
                   <th>Amount</th>
                   <th>Notes</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -365,6 +383,21 @@ export default function TipsPage() {
                     </td>
                     <td>{formatCad(row.amountCents)}</td>
                     <td>{row.notes ?? "—"}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-small"
+                        disabled={deletingId === row.id}
+                        onClick={() =>
+                          handleDelete(
+                            row.id,
+                            `${row.clientName ?? "Client"} — ${formatCad(row.amountCents)}`,
+                          )
+                        }
+                      >
+                        {deletingId === row.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -2,6 +2,7 @@ import { withAuth, jsonResponse, parseJsonBody } from "../../lib/auth.js";
 import {
   createExpense,
   createExpenseStore,
+  deleteExpense,
   getExpensesDashboard,
 } from "../../lib/expenses.js";
 import { getSupabase } from "../../lib/supabase.js";
@@ -39,6 +40,21 @@ export const handler = withAuth(async (event) => {
       return jsonResponse({ ok: true, expense }, 201);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save expense";
+      return jsonResponse({ error: message }, 400);
+    }
+  }
+
+  if (method === "DELETE") {
+    try {
+      const body = parseJsonBody(event);
+      if (!body?.id) {
+        return jsonResponse({ error: "id is required" }, 400);
+      }
+
+      await deleteExpense(supabase, body.id);
+      return jsonResponse({ ok: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete expense";
       return jsonResponse({ error: message }, 400);
     }
   }

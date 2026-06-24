@@ -4,6 +4,7 @@ import {
   ExpensesDashboardResponse,
   createExpense,
   createExpenseStore,
+  deleteExpense,
   fetchExpenses,
 } from "../lib/api";
 import { toDateInputValue } from "../../../lib/dates.js";
@@ -55,6 +56,36 @@ function defaultExpenseDate() {
   return toDateInputValue(new Date()) || new Date().toISOString().slice(0, 10);
 }
 
+const RECEIPT_ACCEPT = "image/*,.pdf,application/pdf";
+const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
+
+function readFileAsBase64(file: File): Promise<{
+  fileName: string;
+  contentType: string;
+  dataBase64: string;
+}> {
+  return new Promise((resolve, reject) => {
+    if (file.size > MAX_RECEIPT_BYTES) {
+      reject(new Error("Receipt file must be 5 MB or smaller"));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      const comma = result.indexOf(",");
+      const dataBase64 = comma >= 0 ? result.slice(comma + 1) : result;
+      resolve({
+        fileName: file.name,
+        contentType: file.type || "application/octet-stream",
+        dataBase64,
+      });
+    };
+    reader.onerror = () => reject(new Error("Failed to read receipt file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ExpensesPage() {
   const [data, setData] = useState<ExpensesDashboardResponse | null>(null);
   const [period, setPeriod] = useState<PeriodId>("this_month");
@@ -72,6 +103,9 @@ export default function ExpensesPage() {
   const [description, setDescription] = useState("");
   const [expenseDate, setExpenseDate] = useState(defaultExpenseDate);
   const [amount, setAmount] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -91,6 +125,22 @@ export default function ExpensesPage() {
 
   const stores = data?.stores ?? [];
 
+  useEffect(() => {
+    if (!receiptFile) {
+      setReceiptPreviewUrl(null);
+      return;
+    }
+
+    if (!receiptFile.type.startsWith("image/")) {
+      setReceiptPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(receiptFile);
+    setReceiptPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [receiptFile]);
+
   function resetForm() {
     setStoreId("");
     setShowCreateStore(false);
@@ -98,6 +148,7 @@ export default function ExpensesPage() {
     setDescription("");
     setExpenseDate(defaultExpenseDate());
     setAmount("");
+    setReceiptFile(null);
     setFormError(null);
   }
 
@@ -164,11 +215,13 @@ export default function ExpensesPage() {
 
     setSaving(true);
     try {
+      const receipt = receiptFile ? await readFileAsBase64(receiptFile) : undefined;
       await createExpense({
         storeId,
         description: description.trim(),
         amountCents,
         expenseDate,
+        receipt,
       });
       setShowAdd(false);
       resetForm();
@@ -177,6 +230,21 @@ export default function ExpensesPage() {
       setFormError(err instanceof Error ? err.message : "Failed to save expense");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(expenseId: string, label: string) {
+    if (!window.confirm(`Delete this expense?\n\n${label}`)) return;
+
+    setDeletingId(expenseId);
+    setError(null);
+    try {
+      await deleteExpense(expenseId);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete expense");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -204,6 +272,16 @@ export default function ExpensesPage() {
               Details: {data.setupError}
             </p>
           )}
+        </div>
+      )}
+
+      {data?.receiptMigrationRequired && !data?.migrationRequired && (
+        <div
+          className="error-banner"
+          style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}
+        >
+          Receipt uploads are not set up yet. Run <code>schema/expenses_receipt.sql</code> in Supabase
+          to attach photos or PDFs to expenses.
         </div>
       )}
 
@@ -324,6 +402,8 @@ export default function ExpensesPage() {
                   <th>Store</th>
                   <th>What we bought</th>
                   <th>Amount</th>
+                  <th>Receipt</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -333,6 +413,30 @@ export default function ExpensesPage() {
                     <td>{row.storeName ?? "—"}</td>
                     <td>{row.description}</td>
                     <td>{formatCad(row.amountCents)}</td>
+                    <td>
+                      {row.hasReceipt && row.receiptUrl ? (
+                        <a href={row.receiptUrl} target="_blank" rel="noreferrer">
+                          {row.receiptContentType?.includes("pdf") ? "View PDF" : "View"}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-small"
+                        disabled={deletingId === row.id}
+                        onClick={() =>
+                          handleDelete(
+                            row.id,
+                            `${row.storeName ?? "Expense"} — ${row.description} (${formatCad(row.amountCents)})`,
+                          )
+                        }
+                      >
+                        {deletingId === row.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -448,6 +552,44 @@ export default function ExpensesPage() {
                   style={{ display: "block", width: "100%", marginTop: "0.35rem" }}
                 />
               </label>
+
+              <label style={{ display: "block", marginBottom: "1rem" }}>
+                Receipt (optional)
+                <input
+                  type="file"
+                  accept={RECEIPT_ACCEPT}
+                  disabled={Boolean(data?.receiptMigrationRequired)}
+                  onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)}
+                  style={{ display: "block", width: "100%", marginTop: "0.35rem" }}
+                />
+              </label>
+              <p className="muted" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
+                Photo or PDF, up to 5 MB.
+              </p>
+
+              {receiptFile && !receiptPreviewUrl && (
+                <p className="muted" style={{ marginTop: "-0.5rem", marginBottom: "1rem" }}>
+                  Attached: {receiptFile.name}
+                </p>
+              )}
+
+              {receiptPreviewUrl && (
+                <div style={{ marginBottom: "1rem" }}>
+                  <div className="muted">Preview</div>
+                  <img
+                    src={receiptPreviewUrl}
+                    alt="Receipt preview"
+                    style={{
+                      display: "block",
+                      maxWidth: "100%",
+                      maxHeight: 220,
+                      marginTop: "0.35rem",
+                      borderRadius: 8,
+                      border: "1px solid #e2e8f0",
+                    }}
+                  />
+                </div>
+              )}
 
               <div className="inline-actions">
                 <button type="submit" className="btn" disabled={saving || creatingStore}>

@@ -16,6 +16,9 @@
 [functions."scheduled-appointment-sync"]
   schedule = "*/15 * * * *"
 
+[functions."scheduled-review-sms"]
+  schedule = "*/15 * * * *"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

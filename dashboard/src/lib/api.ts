@@ -117,6 +117,13 @@ export function createTip(payload: {
   });
 }
 
+export function deleteTip(id: string) {
+  return apiFetch<{ ok: boolean }>("api-tips", {
+    method: "DELETE",
+    body: JSON.stringify({ id }),
+  });
+}
+
 export function fetchExpenses(period = "this_month", year?: number) {
   const params = new URLSearchParams({ period });
   if (year != null) params.set("year", String(year));
@@ -135,10 +142,22 @@ export function createExpense(payload: {
   description: string;
   amountCents: number;
   expenseDate: string;
+  receipt?: {
+    fileName: string;
+    contentType: string;
+    dataBase64: string;
+  };
 }) {
   return apiFetch<{ ok: boolean; expense: ExpenseRow }>("api-expenses", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function deleteExpense(id: string) {
+  return apiFetch<{ ok: boolean }>("api-expenses", {
+    method: "DELETE",
+    body: JSON.stringify({ id }),
   });
 }
 
@@ -211,6 +230,65 @@ export function sendManualBulkSms(
   return apiFetch<ManualBulkSmsResult>("api-manual-sms", {
     method: "POST",
     body: JSON.stringify({ messageBodyEn, messageBodyFr, clientIds }),
+  });
+}
+
+export interface ReviewSmsSettings {
+  active: boolean;
+  delayMinutes: number;
+  reviewUrl: string;
+  messageBodyEn: string;
+  messageBodyFr: string;
+  activeSince: string | null;
+  updatedAt: string | null;
+  migrationRequired?: boolean;
+}
+
+export interface ReviewSmsSentRow {
+  smsLogId: string;
+  clientId: string;
+  clientName: string | null;
+  phone: string | null;
+  status: string;
+  sentAt: string | null;
+  createdAt: string;
+  errorMessage: string | null;
+}
+
+export interface ReviewSmsDueClient {
+  clientId: string;
+  name: string | null;
+  phone: string | null;
+  preferredLanguage: "en" | "fr";
+  completedAt: string;
+  serviceType: string | null;
+  minutesSinceDetail: number;
+}
+
+export interface ReviewSmsResponse {
+  settings: ReviewSmsSettings;
+  sentHistory: ReviewSmsSentRow[];
+  dueNow: ReviewSmsDueClient[];
+  dueCount: number;
+  sentCount: number;
+  productionSendsEnabled: boolean;
+  testPhone: string;
+}
+
+export function fetchReviewSms() {
+  return apiFetch<ReviewSmsResponse>("api-review-sms");
+}
+
+export function saveReviewSmsSettings(payload: {
+  active: boolean;
+  delayMinutes: number;
+  reviewUrl: string;
+  messageBodyEn: string;
+  messageBodyFr: string;
+}) {
+  return apiFetch<{ ok: boolean; settings: ReviewSmsSettings }>("api-review-sms", {
+    method: "PUT",
+    body: JSON.stringify(payload),
   });
 }
 
@@ -533,6 +611,10 @@ export interface ExpenseRow {
   amountCents: number;
   expenseDate: string;
   createdAt: string;
+  hasReceipt?: boolean;
+  receiptFileName?: string | null;
+  receiptContentType?: string | null;
+  receiptUrl?: string | null;
 }
 
 export interface ExpenseMonthBucket {
@@ -544,6 +626,7 @@ export interface ExpenseMonthBucket {
 
 export interface ExpensesDashboardResponse {
   migrationRequired?: boolean;
+  receiptMigrationRequired?: boolean;
   setupError?: string | null;
   period: string;
   periodLabel: string;

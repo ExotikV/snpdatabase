@@ -2,6 +2,7 @@ import { withAuth, jsonResponse, parseJsonBody } from "../../lib/auth.js";
 import { getSupabase } from "../../lib/supabase.js";
 import {
   createTip,
+  deleteTip,
   getTipsDashboard,
   loadRecentDetailsForClient,
 } from "../../lib/tips.js";
@@ -40,6 +41,21 @@ export const handler = withAuth(async (event) => {
       return jsonResponse({ ok: true, tip }, 201);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save tip";
+      return jsonResponse({ error: message }, 400);
+    }
+  }
+
+  if (method === "DELETE") {
+    try {
+      const body = parseJsonBody(event);
+      if (!body?.id) {
+        return jsonResponse({ error: "id is required" }, 400);
+      }
+
+      await deleteTip(supabase, body.id);
+      return jsonResponse({ ok: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete tip";
       return jsonResponse({ error: message }, 400);
     }
   }

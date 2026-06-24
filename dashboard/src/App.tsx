@@ -13,6 +13,7 @@ import TipsPage from "./pages/TipsPage";
 import UpcomingAppointmentsPage from "./pages/UpcomingAppointmentsPage";
 import SmsLogPage from "./pages/SmsLogPage";
 import SmsSubscribersPage from "./pages/SmsSubscribersPage";
+import ReviewSmsPage from "./pages/ReviewSmsPage";
 import { clearToken, getToken } from "./lib/api";
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="enrollments" element={<EnrollmentsPage />} />
         <Route path="sms-subscribers" element={<SmsSubscribersPage />} />
         <Route path="bulk-sms" element={<BulkSmsPage />} />
+        <Route path="review-sms" element={<ReviewSmsPage />} />
         <Route path="sms-log" element={<SmsLogPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

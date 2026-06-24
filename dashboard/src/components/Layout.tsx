@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: "/enrollments", label: "Clients" },
   { to: "/sms-subscribers", label: "Subscribers" },
   { to: "/bulk-sms", label: "Bulk SMS" },
+  { to: "/review-sms", label: "Review SMS" },
   { to: "/sms-log", label: "SMS logs" },
 ] as const;
 
