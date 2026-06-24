@@ -49,7 +49,8 @@ function QueueTable({ rows }: { rows: SmsQueueRow[] }) {
             <th>Step</th>
             <th>Since detail</th>
             <th>Schedule</th>
-            <th>When</th>
+            <th>Send at</th>
+            <th>Status</th>
             <th>Message</th>
           </tr>
         </thead>
@@ -83,7 +84,12 @@ function QueueTable({ rows }: { rows: SmsQueueRow[] }) {
                   </span>
                 )}
               </td>
-              <td>{row.sendTiming}</td>
+              <td>
+                <div>{row.estimatedSendAtLabel ?? "—"}</div>
+              </td>
+              <td>
+                <div>{row.sendTiming}</div>
+              </td>
               <td style={{ maxWidth: "280px" }}>
                 <details>
                   <summary>Preview</summary>
@@ -183,7 +189,9 @@ export default function SmsQueuePage() {
         <p className="muted">
           Each step sends on its <strong>exact schedule day only</strong> — if that day passed, it is skipped
           (e.g. step at day 60 will not send on day 70). Manual texts this cycle count as step 1.
-          Sends run hourly, {preview.rules.sendWindow}, max {preview.rules.maxPerHour} per run.{" "}
+          <strong> Send at</strong> is the estimated date and time (Eastern) of the next hourly run that can
+          deliver the text, respecting the {preview.rules.sendWindow} window for day-based steps. Hour-based
+          steps can send on any hour. Max {preview.rules.maxPerHour} per run.{" "}
           {preview.rules.note}
         </p>
       </div>

@@ -636,6 +636,8 @@ export interface SmsQueueRow {
   messagePreview: string;
   status: "due_now" | "upcoming";
   sendTiming: string;
+  estimatedSendAt: string | null;
+  estimatedSendAtLabel: string | null;
 }
 
 export interface SmsQueuePreview {

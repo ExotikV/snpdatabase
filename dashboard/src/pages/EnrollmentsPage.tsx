@@ -19,6 +19,7 @@ export default function EnrollmentsPage() {
   const [filter, setFilter] = useState<
     "all" | "maintenance" | "general" | "general_after_maintenance" | "excluded" | "stop"
   >("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [cityDrafts, setCityDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -42,7 +43,16 @@ export default function EnrollmentsPage() {
   }, [load]);
 
   const filtered = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
     return clients.filter((client) => {
+      if (normalizedSearch) {
+        const name = (client.name ?? "").toLowerCase();
+        if (!name.includes(normalizedSearch)) {
+          return false;
+        }
+      }
+
       if (filter === "excluded") return client.optedOut;
       if (filter === "stop") return client.optedOut && client.optedOutSource === "stop_reply";
       if (filter === "maintenance") return client.smsTrack === "maintenance";
@@ -52,7 +62,7 @@ export default function EnrollmentsPage() {
       }
       return true;
     });
-  }, [clients, filter]);
+  }, [clients, filter, searchQuery]);
 
   async function handleToggleSmsExclusion(clientId: string, excludedFromSms: boolean) {
     setBusyId(clientId);
@@ -179,6 +189,14 @@ export default function EnrollmentsPage() {
           <button type="button" className="btn" disabled={syncing} onClick={handleSquareSync}>
             {syncing ? "Syncing from Square…" : "Sync from Square"}
           </button>
+          <input
+            type="search"
+            placeholder="Search by name…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ flex: "1 1 200px", maxWidth: 320 }}
+            aria-label="Search clients by name"
+          />
           <label>
             Show{" "}
             <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
@@ -192,6 +210,15 @@ export default function EnrollmentsPage() {
           </label>
         </div>
 
+        {filtered.length === 0 ? (
+          <p className="muted">
+            {clients.length === 0
+              ? "No clients yet."
+              : searchQuery.trim()
+                ? `No clients match “${searchQuery.trim()}”.`
+                : "No clients match this filter."}
+          </p>
+        ) : (
         <table>
           <thead>
             <tr>
@@ -299,6 +326,7 @@ export default function EnrollmentsPage() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
     </>
   );
