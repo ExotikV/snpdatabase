@@ -38,7 +38,7 @@ export default function SmsLogPage() {
       {error && <div className="error-banner">{error}</div>}
 
       <div className="panel">
-        <h2>SMS log</h2>
+        <h2>SMS logs</h2>
         {rows.length === 0 ? (
           <p className="muted">No SMS sent yet.</p>
         ) : (

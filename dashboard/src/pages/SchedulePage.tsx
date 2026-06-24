@@ -410,6 +410,10 @@ export default function SchedulePage() {
 
   return (
     <>
+      <h2 className="section-title" style={{ marginTop: 0 }}>
+        SMS schedule
+      </h2>
+
       <div className="tab-row">
         <button
           type="button"

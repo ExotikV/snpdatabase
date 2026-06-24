@@ -3,17 +3,16 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 const NAV_ITEMS = [
   { to: "/", label: "Overview", end: true },
-  { to: "/schedule", label: "Schedule" },
   { to: "/appointments", label: "Appointments" },
-  { to: "/tips", label: "Tips" },
   { to: "/revenue", label: "Revenue" },
+  { to: "/tips", label: "Tips" },
   { to: "/expenses", label: "Expenses" },
+  { to: "/schedule", label: "SMS schedule" },
   { to: "/sms-queue", label: "Scheduled SMS" },
   { to: "/enrollments", label: "Clients" },
   { to: "/sms-subscribers", label: "Subscribers" },
-  { to: "/send", label: "Send now" },
   { to: "/bulk-sms", label: "Bulk SMS" },
-  { to: "/sms-log", label: "SMS log" },
+  { to: "/sms-log", label: "SMS logs" },
 ] as const;
 
 export default function Layout({ onLogout }: { onLogout: () => void }) {

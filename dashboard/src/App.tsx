@@ -6,7 +6,6 @@ import EnrollmentsPage from "./pages/EnrollmentsPage";
 import LoginPage from "./pages/LoginPage";
 import OverviewPage from "./pages/OverviewPage";
 import SchedulePage from "./pages/SchedulePage";
-import SendNowPage from "./pages/SendNowPage";
 import SmsQueuePage from "./pages/SmsQueuePage";
 import RevenuePage from "./pages/RevenuePage";
 import ExpensesPage from "./pages/ExpensesPage";
@@ -40,7 +39,6 @@ export default function App() {
         <Route path="sms-queue" element={<SmsQueuePage />} />
         <Route path="enrollments" element={<EnrollmentsPage />} />
         <Route path="sms-subscribers" element={<SmsSubscribersPage />} />
-        <Route path="send" element={<SendNowPage />} />
         <Route path="bulk-sms" element={<BulkSmsPage />} />
         <Route path="sms-log" element={<SmsLogPage />} />
       </Route>
