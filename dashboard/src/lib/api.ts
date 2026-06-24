@@ -73,6 +73,16 @@ export function fetchBookings() {
   return apiFetch<{ bookings: BookingRow[] }>("api-bookings");
 }
 
+export function fetchBookingRevenue(period = "this_month", year?: number) {
+  const params = new URLSearchParams({ period });
+  if (year != null) params.set("year", String(year));
+  return apiFetch<BookingRevenueDashboardResponse>(`api-booking-revenue?${params.toString()}`);
+}
+
+export function fetchWeeklyOverview() {
+  return apiFetch<WeeklyOverviewResponse>("api-weekly-overview");
+}
+
 export function fetchUpcomingAppointments() {
   return apiFetch<UpcomingAppointmentsResponse>("api-upcoming-appointments");
 }
@@ -540,6 +550,53 @@ export interface ExpensesDashboardResponse {
   stores: ExpenseStoreRow[];
   availablePeriods: { id: string; label: string }[];
   year: number;
+}
+
+export interface BookingRevenueMonthBucket {
+  month: number;
+  label: string;
+  bookedCents: number;
+  actualCents: number;
+  bookingCount: number;
+}
+
+export interface BookingRevenueDashboardResponse {
+  migrationRequired: boolean;
+  period: string;
+  periodLabel: string;
+  stats: {
+    bookingCount: number;
+    uniqueClients: number;
+    bookedCents: number;
+    actualCents: number;
+    pendingBookedCents: number;
+    cancelledCount: number;
+  };
+  monthlyBreakdown: BookingRevenueMonthBucket[];
+  bookings: BookingRow[];
+  availablePeriods: { id: string; label: string }[];
+  year: number;
+}
+
+export interface WeeklyOverviewResponse {
+  generatedAt: string;
+  weekLabel: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  revenueMigrationRequired: boolean;
+  expensesMigrationRequired: boolean;
+  stats: {
+    bookedRevenueCents: number;
+    actualRevenueCents: number;
+    expensesCents: number;
+    netAfterExpensesCents: number;
+    bookingsCount: number;
+    clientsBookedCount: number;
+    appointmentsRemainingCount: number;
+    remainingRevenueCents: number;
+    expenseCount: number;
+    completedJobsCount: number;
+  };
 }
 
 export interface BookingRow {

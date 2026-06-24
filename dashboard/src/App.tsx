@@ -8,6 +8,7 @@ import OverviewPage from "./pages/OverviewPage";
 import SchedulePage from "./pages/SchedulePage";
 import SendNowPage from "./pages/SendNowPage";
 import SmsQueuePage from "./pages/SmsQueuePage";
+import RevenuePage from "./pages/RevenuePage";
 import ExpensesPage from "./pages/ExpensesPage";
 import TipsPage from "./pages/TipsPage";
 import UpcomingAppointmentsPage from "./pages/UpcomingAppointmentsPage";
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="appointments" element={<UpcomingAppointmentsPage />} />
         <Route path="tips" element={<TipsPage />} />
+        <Route path="revenue" element={<RevenuePage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="sms-queue" element={<SmsQueuePage />} />
         <Route path="enrollments" element={<EnrollmentsPage />} />

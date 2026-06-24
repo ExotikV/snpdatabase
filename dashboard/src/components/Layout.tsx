@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: "/schedule", label: "Schedule" },
   { to: "/appointments", label: "Appointments" },
   { to: "/tips", label: "Tips" },
+  { to: "/revenue", label: "Revenue" },
   { to: "/expenses", label: "Expenses" },
   { to: "/sms-queue", label: "Scheduled SMS" },
   { to: "/enrollments", label: "Clients" },

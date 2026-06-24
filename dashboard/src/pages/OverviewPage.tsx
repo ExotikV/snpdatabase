@@ -11,27 +11,16 @@ import {
   YAxis,
 } from "recharts";
 import {
-  BookingRow,
   REFRESH_MS,
   StatsResponse,
-  fetchBookings,
+  WeeklyOverviewResponse,
   fetchStats,
+  fetchWeeklyOverview,
 } from "../lib/api";
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString();
-}
 
 function formatCad(cents: number | null | undefined) {
   if (cents == null || !Number.isFinite(cents)) return "—";
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(cents / 100);
-}
-
-function revenueStatusLabel(status: string | null) {
-  if (status === "realized") return "Completed";
-  if (status === "cancelled") return "Cancelled";
-  if (status === "booked") return "Booked (pending)";
-  return status ?? "—";
 }
 
 function formatTrackingDate(ymd: string) {
@@ -47,7 +36,7 @@ type PerformanceTab = "sms" | "qr";
 
 export default function OverviewPage() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [weekly, setWeekly] = useState<WeeklyOverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -56,9 +45,9 @@ export default function OverviewPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [statsData, bookingsData] = await Promise.all([fetchStats(), fetchBookings()]);
+      const [statsData, weeklyData] = await Promise.all([fetchStats(), fetchWeeklyOverview()]);
       setStats(statsData);
-      setBookings(bookingsData.bookings);
+      setWeekly(weeklyData);
       setLastUpdated(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
@@ -86,44 +75,63 @@ export default function OverviewPage() {
         </p>
       )}
 
-      {stats?.revenue?.migrationRequired && (
+      {weekly?.revenueMigrationRequired && (
         <div
           className="error-banner"
           style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}
         >
-          Run <code>schema/booking_attempts_revenue.sql</code> in Supabase to enable booked vs actual
-          revenue tracking.
+          Run <code>schema/booking_attempts_revenue.sql</code> in Supabase to enable revenue on the
+          weekly overview and Revenue tab.
         </div>
+      )}
+
+      {weekly && (
+        <>
+          <h2 className="section-title">This week</h2>
+          <p className="muted section-intro">
+            {weekly.weekLabel}. Monday–Sunday (Eastern).{" "}
+            <Link to="/revenue">Full revenue history</Link> · <Link to="/expenses">Expenses</Link>
+          </p>
+          <div className="card-grid">
+            <div className="card">
+              <div className="card-label">Actual revenue</div>
+              <div className="card-value">{formatCad(weekly.stats.actualRevenueCents)}</div>
+              <div className="muted">{weekly.stats.completedJobsCount} completed details</div>
+            </div>
+            <div className="card">
+              <div className="card-label">New booked revenue</div>
+              <div className="card-value">{formatCad(weekly.stats.bookedRevenueCents)}</div>
+              <div className="muted">Checkouts this week</div>
+            </div>
+            <div className="card">
+              <div className="card-label">Still to do</div>
+              <div className="card-value">{formatCad(weekly.stats.remainingRevenueCents)}</div>
+              <div className="muted">
+                {weekly.stats.appointmentsRemainingCount} upcoming appointment
+                {weekly.stats.appointmentsRemainingCount === 1 ? "" : "s"} left this week
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-label">Expenses</div>
+              <div className="card-value">{formatCad(weekly.stats.expensesCents)}</div>
+              <div className="muted">{weekly.stats.expenseCount} logged</div>
+            </div>
+            <div className="card">
+              <div className="card-label">Bookings</div>
+              <div className="card-value">{weekly.stats.bookingsCount}</div>
+              <div className="muted">{weekly.stats.clientsBookedCount} unique clients</div>
+            </div>
+            <div className="card">
+              <div className="card-label">Net (actual − expenses)</div>
+              <div className="card-value">{formatCad(weekly.stats.netAfterExpensesCents)}</div>
+              <div className="muted">Completed revenue minus expenses</div>
+            </div>
+          </div>
+        </>
       )}
 
       {stats && (
         <>
-          <h2 className="section-title">Revenue from tracked bookings</h2>
-          <p className="muted section-intro">
-            <strong>Booked revenue</strong> is recorded when someone completes checkout on the
-            website. <strong>Actual revenue</strong> counts only after the Square detail is in the
-            past and not cancelled.
-          </p>
-          <div className="card-grid">
-            <div className="card">
-              <div className="card-label">Booked revenue</div>
-              <div className="card-value">{formatCad(stats.revenue.bookedCents)}</div>
-            </div>
-            <div className="card">
-              <div className="card-label">Actual revenue</div>
-              <div className="card-value">{formatCad(stats.revenue.actualCents)}</div>
-            </div>
-            <div className="card">
-              <div className="card-label">Pending booked</div>
-              <div className="card-value">{formatCad(stats.revenue.pendingBookedCents)}</div>
-              <div className="muted">Future appointments not yet completed</div>
-            </div>
-            <div className="card">
-              <div className="card-label">Total bookings tracked</div>
-              <div className="card-value">{stats.totalBookings}</div>
-            </div>
-          </div>
-
           {stats.smsSubscribers && (
             <>
               <h2 className="section-title">SMS subscribers</h2>
@@ -355,52 +363,6 @@ export default function OverviewPage() {
           </div>
         </>
       )}
-
-      <div className="panel">
-        <h2>Recent bookings</h2>
-        {bookings.length === 0 ? (
-          <p className="muted">No bookings recorded yet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>SMS track</th>
-                <th>Phone</th>
-                <th>Booked at</th>
-                <th>Booked $</th>
-                <th>Actual $</th>
-                <th>Revenue status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.sourceLabel}</td>
-                  <td>{row.linkedSms?.trackLabel ?? "—"}</td>
-                  <td>{row.phone ?? "—"}</td>
-                  <td>{formatDate(row.bookedAt)}</td>
-                  <td>{formatCad(row.bookedRevenueCents)}</td>
-                  <td>{formatCad(row.actualRevenueCents)}</td>
-                  <td>
-                    <span
-                      className={`badge ${
-                        row.revenueStatus === "realized"
-                          ? "badge-converted"
-                          : row.revenueStatus === "cancelled"
-                            ? "badge-failed"
-                            : "badge-pending"
-                      }`}
-                    >
-                      {revenueStatusLabel(row.revenueStatus)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
     </>
   );
 }
