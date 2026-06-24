@@ -101,6 +101,31 @@ export function createTip(payload: {
   });
 }
 
+export function fetchExpenses(period = "this_month", year?: number) {
+  const params = new URLSearchParams({ period });
+  if (year != null) params.set("year", String(year));
+  return apiFetch<ExpensesDashboardResponse>(`api-expenses?${params.toString()}`);
+}
+
+export function createExpenseStore(name: string) {
+  return apiFetch<{ ok: boolean; store: ExpenseStoreRow }>("api-expenses", {
+    method: "POST",
+    body: JSON.stringify({ action: "create_store", name }),
+  });
+}
+
+export function createExpense(payload: {
+  storeId: string;
+  description: string;
+  amountCents: number;
+  expenseDate: string;
+}) {
+  return apiFetch<{ ok: boolean; expense: ExpenseRow }>("api-expenses", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchSmsLog() {
   return apiFetch<{ smsLog: SmsLogRow[] }>("api-sms-log");
 }
@@ -472,6 +497,46 @@ export interface TipsDashboardResponse {
   monthlyBreakdown: TipMonthBucket[];
   tips: TipRow[];
   todayJobs: TipTodayJob[];
+  availablePeriods: { id: string; label: string }[];
+  year: number;
+}
+
+export interface ExpenseStoreRow {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ExpenseRow {
+  id: string;
+  storeId: string;
+  storeName: string | null;
+  description: string;
+  amountCents: number;
+  expenseDate: string;
+  createdAt: string;
+}
+
+export interface ExpenseMonthBucket {
+  month: number;
+  label: string;
+  totalCents: number;
+  expenseCount: number;
+}
+
+export interface ExpensesDashboardResponse {
+  migrationRequired?: boolean;
+  setupError?: string | null;
+  period: string;
+  periodLabel: string;
+  stats: {
+    totalCents: number;
+    expenseCount: number;
+    averageCents: number;
+  };
+  monthlyBreakdown: ExpenseMonthBucket[];
+  expenses: ExpenseRow[];
+  stores: ExpenseStoreRow[];
   availablePeriods: { id: string; label: string }[];
   year: number;
 }
