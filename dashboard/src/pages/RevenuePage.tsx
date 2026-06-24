@@ -89,39 +89,25 @@ export default function RevenuePage() {
         </div>
       )}
 
-      {data?.squareRevenueUnavailable && (
-        <div
-          className="error-banner"
-          style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}
-        >
-          Could not load Square order totals — check that your Square token has{" "}
-          <code>ORDERS_READ</code> scope.
-        </div>
-      )}
-
       <div className="panel" style={{ marginBottom: "1.25rem" }}>
         <div style={{ marginBottom: "1rem" }}>
-          <h2 style={{ margin: 0 }}>Revenue</h2>
+          <h2 style={{ margin: 0 }}>Tracked booking revenue</h2>
           <p className="muted" style={{ margin: "0.35rem 0 0" }}>
-            <strong>Square revenue</strong> is the total of completed orders in Square for the
-            period (includes phone bookings, manual price edits, and anything else rung through
-            Square). <strong>Booked revenue</strong> below is only tracked website/SMS/QR
-            checkouts.
+            Website, SMS, QR, and Square-linked bookings. <strong>Booked revenue</strong> is recorded
+            at checkout; <strong>actual revenue</strong> counts completed details.
           </p>
         </div>
 
         <div className="card-grid">
           <div className="card">
-            <div className="card-label">Square revenue — {data?.periodLabel ?? "period"}</div>
-            <div className="card-value">{formatCad(data?.stats.actualCents ?? 0)}</div>
-            <div className="muted">
-              {data?.stats.squareOrderCount ?? 0} completed orders in Square
-            </div>
+            <div className="card-label">{data?.periodLabel ?? "Booked revenue"}</div>
+            <div className="card-value">{formatCad(data?.stats.bookedCents ?? 0)}</div>
+            <div className="muted">{data?.stats.bookingCount ?? 0} bookings</div>
           </div>
           <div className="card">
-            <div className="card-label">Tracked booked revenue</div>
-            <div className="card-value">{formatCad(data?.stats.bookedCents ?? 0)}</div>
-            <div className="muted">{data?.stats.bookingCount ?? 0} website/SMS/QR bookings</div>
+            <div className="card-label">Actual revenue</div>
+            <div className="card-value">{formatCad(data?.stats.actualCents ?? 0)}</div>
+            <div className="muted">Completed details in period</div>
           </div>
           <div className="card">
             <div className="card-label">Pending booked</div>
@@ -184,11 +170,9 @@ export default function RevenuePage() {
                 onClick={() => setPeriod(monthPeriod)}
               >
                 <div className="card-label">{bucket.label}</div>
-                <div className="card-value">{formatCad(bucket.actualCents)}</div>
+                <div className="card-value">{formatCad(bucket.bookedCents)}</div>
                 <div className="muted">
-                  Square orders{bucket.squareOrderCount != null ? `: ${bucket.squareOrderCount}` : ""}
-                  {" · "}
-                  {bucket.bookingCount} tracked bookings ({formatCad(bucket.bookedCents)} booked)
+                  {bucket.bookingCount} bookings · actual {formatCad(bucket.actualCents)}
                 </div>
               </button>
             );

@@ -65,6 +65,11 @@ export function fetchAuthStatus() {
   return apiFetch<{ configured: boolean }>("api-auth");
 }
 
+export function fetchOverview(sync = false) {
+  const params = sync ? "?sync=1" : "";
+  return apiFetch<OverviewPageResponse>(`api-overview${params}`);
+}
+
 export function fetchStats() {
   return apiFetch<StatsResponse>("api-stats");
 }
@@ -83,8 +88,9 @@ export function fetchWeeklyOverview() {
   return apiFetch<WeeklyOverviewResponse>("api-weekly-overview");
 }
 
-export function fetchUpcomingAppointments() {
-  return apiFetch<UpcomingAppointmentsResponse>("api-upcoming-appointments");
+export function fetchUpcomingAppointments(sync = false) {
+  const params = sync ? "?sync=1" : "";
+  return apiFetch<UpcomingAppointmentsResponse>(`api-upcoming-appointments${params}`);
 }
 
 export function fetchTips(period = "this_month", year?: number) {
@@ -421,6 +427,7 @@ export interface UpcomingAppointmentRow {
   phone: string | null;
   email: string | null;
   city: string | null;
+  address: string | null;
   startAt: string;
   daysUntil: number | null;
   daysUntilLabel: string;
@@ -552,18 +559,21 @@ export interface ExpensesDashboardResponse {
   year: number;
 }
 
+export interface OverviewPageResponse {
+  stats: StatsResponse;
+  weekly: WeeklyOverviewResponse;
+}
+
 export interface BookingRevenueMonthBucket {
   month: number;
   label: string;
   bookedCents: number;
   actualCents: number;
   bookingCount: number;
-  squareOrderCount?: number;
 }
 
 export interface BookingRevenueDashboardResponse {
   migrationRequired: boolean;
-  squareRevenueUnavailable?: boolean;
   period: string;
   periodLabel: string;
   stats: {
@@ -573,7 +583,6 @@ export interface BookingRevenueDashboardResponse {
     actualCents: number;
     pendingBookedCents: number;
     cancelledCount: number;
-    squareOrderCount?: number;
   };
   monthlyBreakdown: BookingRevenueMonthBucket[];
   bookings: BookingRow[];

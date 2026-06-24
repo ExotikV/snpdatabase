@@ -50,6 +50,7 @@ function AppointmentsTable({ rows }: { rows: UpcomingAppointmentRow[] }) {
           <tr>
             <th>When</th>
             <th>Client</th>
+            <th>Address</th>
             <th>Service</th>
             <th>Price</th>
             <th>Source</th>
@@ -83,11 +84,9 @@ function AppointmentsTable({ rows }: { rows: UpcomingAppointmentRow[] }) {
                     {row.email}
                   </div>
                 )}
-                {row.city && (
-                  <div className="muted" style={{ fontSize: "0.85rem" }}>
-                    {row.city}
-                  </div>
-                )}
+              </td>
+              <td style={{ maxWidth: "240px", fontSize: "0.9rem" }}>
+                {row.address ?? row.city ?? "—"}
               </td>
               <td>{row.serviceType ?? "—"}</td>
               <td>
@@ -131,24 +130,27 @@ function AppointmentsTable({ rows }: { rows: UpcomingAppointmentRow[] }) {
 export default function UpcomingAppointmentsPage() {
   const [data, setData] = useState<UpcomingAppointmentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [daysFilter, setDaysFilter] = useState<"all" | "7" | "30">("all");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (sync = false) => {
     setError(null);
+    if (sync) setSyncing(true);
     try {
-      const response = await fetchUpcomingAppointments();
+      const response = await fetchUpcomingAppointments(sync);
       setData(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load upcoming appointments");
     } finally {
       setLoading(false);
+      if (sync) setSyncing(false);
     }
   }, []);
 
   useEffect(() => {
     load();
-    const interval = window.setInterval(load, APPOINTMENTS_REFRESH_MS);
+    const interval = window.setInterval(() => load(), APPOINTMENTS_REFRESH_MS);
     return () => window.clearInterval(interval);
   }, [load]);
 
@@ -172,12 +174,23 @@ export default function UpcomingAppointmentsPage() {
       {error && <div className="error-banner">{error}</div>}
 
       <div className="panel">
-        <h2>Upcoming appointments</h2>
-        <p className="muted">
-          Future Square bookings for the next {data.lookaheadDays} days. Synced from Square{" "}
-          {formatDate(data.syncedAt)} (auto-refresh every 15 minutes; also runs every 15 minutes on
-          the server).
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Upcoming appointments</h2>
+            <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+              Cached from Square. Last synced {formatDate(data.syncedAt)}. Server auto-sync runs every
+              15 minutes.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={syncing}
+            onClick={() => load(true)}
+          >
+            {syncing ? "Syncing…" : "Sync from Square"}
+          </button>
+        </div>
 
         <div className="card-grid">
           <div className="card">

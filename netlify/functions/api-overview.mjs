@@ -1,5 +1,5 @@
 import { withAuth, jsonResponse } from "../../lib/auth.js";
-import { getWeeklyOverview } from "../../lib/weekly-overview.js";
+import { getOverviewPageData } from "../../lib/overview-page.js";
 import { getSupabase } from "../../lib/supabase.js";
 
 export const handler = withAuth(async (event) => {
@@ -11,10 +11,10 @@ export const handler = withAuth(async (event) => {
     const supabase = getSupabase();
     const params = event.queryStringParameters ?? {};
     const syncFirst = params.sync === "1";
-    const data = await getWeeklyOverview(supabase, { syncFirst });
+    const data = await getOverviewPageData(supabase, { syncFirst });
     return jsonResponse(data);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load weekly overview";
+    const message = error instanceof Error ? error.message : "Failed to load overview";
     return jsonResponse({ error: message }, 500);
   }
 });

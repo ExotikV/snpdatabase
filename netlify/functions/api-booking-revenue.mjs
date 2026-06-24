@@ -1,7 +1,6 @@
 import { withAuth, jsonResponse } from "../../lib/auth.js";
 import { getBookingRevenueDashboard } from "../../lib/booking-revenue.js";
 import { getSupabase } from "../../lib/supabase.js";
-import { runMatchConversions } from "../../lib/conversions.js";
 
 export const handler = withAuth(async (event) => {
   if (event.httpMethod !== "GET") {
@@ -10,7 +9,6 @@ export const handler = withAuth(async (event) => {
 
   try {
     const supabase = getSupabase();
-    await runMatchConversions(supabase);
 
     const params = event.queryStringParameters ?? {};
     const period = params.period ?? "this_month";

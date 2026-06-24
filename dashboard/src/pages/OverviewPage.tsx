@@ -12,10 +12,8 @@ import {
 } from "recharts";
 import {
   REFRESH_MS,
-  StatsResponse,
-  WeeklyOverviewResponse,
-  fetchStats,
-  fetchWeeklyOverview,
+  OverviewPageResponse,
+  fetchOverview,
 } from "../lib/api";
 
 function formatCad(cents: number | null | undefined) {
@@ -35,19 +33,20 @@ function formatTrackingDate(ymd: string) {
 type PerformanceTab = "sms" | "qr";
 
 export default function OverviewPage() {
-  const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [weekly, setWeekly] = useState<WeeklyOverviewResponse | null>(null);
+  const [data, setData] = useState<OverviewPageResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [performanceTab, setPerformanceTab] = useState<PerformanceTab>("sms");
 
+  const stats = data?.stats ?? null;
+  const weekly = data?.weekly ?? null;
+
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [statsData, weeklyData] = await Promise.all([fetchStats(), fetchWeeklyOverview()]);
-      setStats(statsData);
-      setWeekly(weeklyData);
+      const overview = await fetchOverview();
+      setData(overview);
       setLastUpdated(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
@@ -62,7 +61,7 @@ export default function OverviewPage() {
     return () => window.clearInterval(interval);
   }, [load]);
 
-  if (loading && !stats) {
+  if (loading && !data) {
     return <div className="loading">Loading dashboard…</div>;
   }
 
