@@ -170,6 +170,10 @@ export default function SchedulePage() {
       return;
     }
 
+    if (steps.some((step) => String(step.id).startsWith("pending-"))) {
+      return;
+    }
+
     const snapshot = stepsSnapshot(steps);
     if (snapshot === lastSavedSnapshotRef.current) {
       return;
@@ -262,9 +266,9 @@ export default function SchedulePage() {
     if (saveStatus === "pending") return "Unsaved changes…";
     if (saveStatus === "saving") return "Saving…";
     if (saveStatus === "saved") return "Saved";
-    if (saveStatus === "error") return "Save failed";
+    if (saveStatus === "error") return error ?? "Save failed";
     return null;
-  }, [migrationRequired, languageMigrationRequired, saveStatus]);
+  }, [migrationRequired, languageMigrationRequired, saveStatus, error]);
 
   async function handleAddStep() {
     setError(null);

@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Overview", end: true },
   { to: "/schedule", label: "Schedule" },
   { to: "/appointments", label: "Appointments" },
+  { to: "/tips", label: "Tips" },
   { to: "/sms-queue", label: "Scheduled SMS" },
   { to: "/enrollments", label: "Clients" },
   { to: "/sms-subscribers", label: "Subscribers" },

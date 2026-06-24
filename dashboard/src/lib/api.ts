@@ -12,6 +12,18 @@ export function clearToken() {
   sessionStorage.removeItem(TOKEN_KEY);
 }
 
+function extractApiError(data: unknown, status: number): string {
+  if (data && typeof data === "object" && "error" in data) {
+    const err = (data as { error: unknown }).error;
+    if (typeof err === "string" && err.trim()) return err;
+    if (err && typeof err === "object" && "message" in err) {
+      const message = (err as { message: unknown }).message;
+      if (typeof message === "string" && message.trim()) return message;
+    }
+  }
+  return `Request failed (${status})`;
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -33,11 +45,11 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   if (res.status === 401) {
     clearToken();
     window.location.reload();
-    throw new Error(data.error ?? "Unauthorized");
+    throw new Error(extractApiError(data, res.status));
   }
 
   if (!res.ok) {
-    throw new Error(data.error ?? `Request failed (${res.status})`);
+    throw new Error(extractApiError(data, res.status));
   }
   return data as T;
 }
@@ -63,6 +75,29 @@ export function fetchBookings() {
 
 export function fetchUpcomingAppointments() {
   return apiFetch<UpcomingAppointmentsResponse>("api-upcoming-appointments");
+}
+
+export function fetchTips(period = "this_month", year?: number) {
+  const params = new URLSearchParams({ period });
+  if (year != null) params.set("year", String(year));
+  return apiFetch<TipsDashboardResponse>(`api-tips?${params.toString()}`);
+}
+
+export function fetchClientTipDetails(clientId: string) {
+  return apiFetch<{ details: TipJobOption[] }>(`api-tips?clientId=${encodeURIComponent(clientId)}`);
+}
+
+export function createTip(payload: {
+  clientId: string;
+  detailId?: string | null;
+  amountCents: number;
+  tippedAt?: string;
+  notes?: string;
+}) {
+  return apiFetch<{ ok: boolean; tip: TipRow }>("api-tips", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function fetchSmsLog() {
@@ -380,6 +415,63 @@ export interface UpcomingAppointmentsResponse {
     tomorrow: number;
   };
   appointments: UpcomingAppointmentRow[];
+}
+
+export interface TipRow {
+  id: string;
+  clientId: string;
+  clientName: string | null;
+  clientPhone: string | null;
+  detailId: string | null;
+  amountCents: number;
+  tippedAt: string;
+  notes: string | null;
+  jobCompletedAt: string | null;
+  jobServiceType: string | null;
+  squareBookingId: string | null;
+  createdAt: string;
+}
+
+export interface TipJobOption {
+  detailId: string;
+  completedAt: string;
+  serviceType: string | null;
+  squareBookingId: string | null;
+}
+
+export interface TipTodayJob {
+  detailId: string | null;
+  clientId: string;
+  clientName: string;
+  clientPhone: string | null;
+  clientCity: string | null;
+  completedAt: string;
+  serviceType: string | null;
+  squareBookingId: string | null;
+  source: "completed" | "appointment";
+}
+
+export interface TipMonthBucket {
+  month: number;
+  label: string;
+  totalCents: number;
+  tipCount: number;
+}
+
+export interface TipsDashboardResponse {
+  migrationRequired?: boolean;
+  period: string;
+  periodLabel: string;
+  stats: {
+    totalCents: number;
+    tipCount: number;
+    averageCents: number;
+  };
+  monthlyBreakdown: TipMonthBucket[];
+  tips: TipRow[];
+  todayJobs: TipTodayJob[];
+  availablePeriods: { id: string; label: string }[];
+  year: number;
 }
 
 export interface BookingRow {

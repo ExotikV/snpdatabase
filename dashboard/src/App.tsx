@@ -8,6 +8,7 @@ import OverviewPage from "./pages/OverviewPage";
 import SchedulePage from "./pages/SchedulePage";
 import SendNowPage from "./pages/SendNowPage";
 import SmsQueuePage from "./pages/SmsQueuePage";
+import TipsPage from "./pages/TipsPage";
 import UpcomingAppointmentsPage from "./pages/UpcomingAppointmentsPage";
 import SmsLogPage from "./pages/SmsLogPage";
 import SmsSubscribersPage from "./pages/SmsSubscribersPage";
@@ -31,6 +32,7 @@ export default function App() {
         <Route index element={<OverviewPage />} />
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="appointments" element={<UpcomingAppointmentsPage />} />
+        <Route path="tips" element={<TipsPage />} />
         <Route path="sms-queue" element={<SmsQueuePage />} />
         <Route path="enrollments" element={<EnrollmentsPage />} />
         <Route path="sms-subscribers" element={<SmsSubscribersPage />} />
