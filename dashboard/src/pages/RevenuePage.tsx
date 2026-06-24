@@ -84,17 +84,28 @@ export default function RevenuePage() {
           className="error-banner"
           style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}
         >
-          Run <code>schema/booking_attempts_revenue.sql</code> in Supabase to enable booked vs actual
-          revenue tracking.
+          Run <code>schema/booking_attempts_revenue.sql</code> in Supabase to enable booked vs
+          attributed revenue on booking rows.
+        </div>
+      )}
+
+      {data?.stats.squareUnavailable && (
+        <div
+          className="error-banner"
+          style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}
+        >
+          Square order totals could not be loaded — showing attributed booking revenue instead.
+          Check Square API credentials and redeploy.
         </div>
       )}
 
       <div className="panel" style={{ marginBottom: "1.25rem" }}>
         <div style={{ marginBottom: "1rem" }}>
-          <h2 style={{ margin: 0 }}>Tracked booking revenue</h2>
+          <h2 style={{ margin: 0 }}>Revenue</h2>
           <p className="muted" style={{ margin: "0.35rem 0 0" }}>
-            Website, SMS, QR, and Square-linked bookings. <strong>Booked revenue</strong> is recorded
-            at checkout; <strong>actual revenue</strong> counts completed details.
+            <strong>Actual revenue</strong> is the total from completed Square orders in the
+            selected period (by payment date). <strong>Booked revenue</strong> is checkout totals
+            from tracked website, SMS, and QR bookings.
           </p>
         </div>
 
@@ -105,9 +116,15 @@ export default function RevenuePage() {
             <div className="muted">{data?.stats.bookingCount ?? 0} bookings</div>
           </div>
           <div className="card">
-            <div className="card-label">Actual revenue</div>
+            <div className="card-label">Actual revenue (Square)</div>
             <div className="card-value">{formatCad(data?.stats.actualCents ?? 0)}</div>
-            <div className="muted">Completed details in period</div>
+            <div className="muted">
+              {data?.stats.squareUnavailable
+                ? "Square unavailable — attributed totals shown"
+                : `${data?.stats.squareOrderCount ?? 0} completed Square order${
+                    (data?.stats.squareOrderCount ?? 0) === 1 ? "" : "s"
+                  } in ${data?.periodLabel?.toLowerCase() ?? "period"}`}
+            </div>
           </div>
           <div className="card">
             <div className="card-label">Pending booked</div>
@@ -152,7 +169,10 @@ export default function RevenuePage() {
 
       <div className="panel" style={{ marginBottom: "1.25rem" }}>
         <h3 className="section-title">{year} by month</h3>
-        <p className="muted section-intro">Click a month to filter the booking list below.</p>
+        <p className="muted section-intro">
+          Click a month to filter the booking list below. Monthly actual totals are from Square
+          orders by payment date.
+        </p>
         <div className="card-grid">
           {(data?.monthlyBreakdown ?? []).map((bucket) => {
             const monthPeriod = `month_${bucket.month}` as PeriodId;
@@ -172,7 +192,10 @@ export default function RevenuePage() {
                 <div className="card-label">{bucket.label}</div>
                 <div className="card-value">{formatCad(bucket.bookedCents)}</div>
                 <div className="muted">
-                  {bucket.bookingCount} bookings · actual {formatCad(bucket.actualCents)}
+                  {bucket.bookingCount} bookings · Square {formatCad(bucket.actualCents)}
+                  {bucket.squareOrderCount != null
+                    ? ` (${bucket.squareOrderCount} order${bucket.squareOrderCount === 1 ? "" : "s"})`
+                    : ""}
                 </div>
               </button>
             );

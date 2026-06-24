@@ -79,8 +79,18 @@ export default function OverviewPage() {
           className="error-banner"
           style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}
         >
-          Run <code>schema/booking_attempts_revenue.sql</code> in Supabase to enable revenue on the
-          weekly overview and Revenue tab.
+          Run <code>schema/booking_attempts_revenue.sql</code> in Supabase to enable booked-revenue
+          tracking on new bookings this week.
+        </div>
+      )}
+
+      {weekly?.stats.squareUnavailable && (
+        <div
+          className="error-banner"
+          style={{ background: "#fff8e6", color: "#7a5c00", borderColor: "#fde68a" }}
+        >
+          Square order totals could not be loaded for this week — showing appointment-based revenue
+          instead.
         </div>
       )}
 
@@ -93,11 +103,16 @@ export default function OverviewPage() {
           </p>
           <div className="card-grid">
             <div className="card">
-              <div className="card-label">Revenue</div>
+              <div className="card-label">Revenue (Square)</div>
               <div className="card-value">{formatCad(weekly.stats.actualRevenueCents)}</div>
               <div className="muted">
-                {weekly.stats.completedAppointmentsCount} completed appointment
-                {weekly.stats.completedAppointmentsCount === 1 ? "" : "s"} so far
+                {weekly.stats.squareUnavailable
+                  ? `${weekly.stats.completedAppointmentsCount} completed appointment${
+                      weekly.stats.completedAppointmentsCount === 1 ? "" : "s"
+                    } so far`
+                  : `${weekly.stats.squareOrderCount ?? 0} completed Square order${
+                      (weekly.stats.squareOrderCount ?? 0) === 1 ? "" : "s"
+                    } this week`}
               </div>
             </div>
             <div className="card">
