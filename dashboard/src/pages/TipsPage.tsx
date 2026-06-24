@@ -71,6 +71,7 @@ export default function TipsPage() {
   const [selectedJobKey, setSelectedJobKey] = useState("");
   const [clientId, setClientId] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [squareBookingId, setSquareBookingId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [clientSearch, setClientSearch] = useState("");
@@ -138,6 +139,7 @@ export default function TipsPage() {
     setSelectedJobKey("");
     setClientId("");
     setDetailId(null);
+    setSquareBookingId(null);
     setAmount("");
     setNotes("");
     setClientSearch("");
@@ -156,6 +158,7 @@ export default function TipsPage() {
     if (!value) {
       setClientId("");
       setDetailId(null);
+      setSquareBookingId(null);
       return;
     }
 
@@ -163,6 +166,7 @@ export default function TipsPage() {
     if (!job) return;
     setClientId(job.clientId);
     setDetailId(job.detailId);
+    setSquareBookingId(job.squareBookingId);
     setClientDetails([]);
   }
 
@@ -189,6 +193,7 @@ export default function TipsPage() {
       await createTip({
         clientId,
         detailId,
+        squareBookingId,
         amountCents,
         notes: notes.trim() || undefined,
       });
@@ -217,8 +222,20 @@ export default function TipsPage() {
 
       {data?.migrationRequired && (
         <div className="error-banner">
-          Run <code>schema/tips.sql</code> in the Supabase SQL Editor before logging tips.
+          <p style={{ margin: "0 0 0.5rem" }}>
+            The <strong>tips</strong> table is not set up yet. In Supabase → SQL Editor, paste and run the
+            full contents of <code>schema/tips.sql</code>, then refresh this page.
+          </p>
+          {data.setupError && (
+            <p className="muted" style={{ margin: 0, fontSize: "0.9rem" }}>
+              Details: {data.setupError}
+            </p>
+          )}
         </div>
+      )}
+
+      {!data?.migrationRequired && data?.setupError && (
+        <div className="error-banner">{data.setupError}</div>
       )}
 
       <div className="panel" style={{ marginBottom: "1.25rem" }}>
@@ -229,7 +246,7 @@ export default function TipsPage() {
               Log tips from today&apos;s jobs and track totals over time.
             </p>
           </div>
-          <button type="button" className="btn" onClick={openAddModal} disabled={data?.migrationRequired}>
+          <button type="button" className="btn" onClick={openAddModal} disabled={Boolean(data?.migrationRequired)}>
             Add tip
           </button>
         </div>

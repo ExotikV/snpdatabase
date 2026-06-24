@@ -90,6 +90,7 @@ export function fetchClientTipDetails(clientId: string) {
 export function createTip(payload: {
   clientId: string;
   detailId?: string | null;
+  squareBookingId?: string | null;
   amountCents: number;
   tippedAt?: string;
   notes?: string;
@@ -460,6 +461,7 @@ export interface TipMonthBucket {
 
 export interface TipsDashboardResponse {
   migrationRequired?: boolean;
+  setupError?: string | null;
   period: string;
   periodLabel: string;
   stats: {
