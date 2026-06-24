@@ -558,10 +558,12 @@ export interface BookingRevenueMonthBucket {
   bookedCents: number;
   actualCents: number;
   bookingCount: number;
+  squareOrderCount?: number;
 }
 
 export interface BookingRevenueDashboardResponse {
   migrationRequired: boolean;
+  squareRevenueUnavailable?: boolean;
   period: string;
   periodLabel: string;
   stats: {
@@ -571,6 +573,7 @@ export interface BookingRevenueDashboardResponse {
     actualCents: number;
     pendingBookedCents: number;
     cancelledCount: number;
+    squareOrderCount?: number;
   };
   monthlyBreakdown: BookingRevenueMonthBucket[];
   bookings: BookingRow[];
@@ -595,7 +598,7 @@ export interface WeeklyOverviewResponse {
     appointmentsRemainingCount: number;
     remainingRevenueCents: number;
     expenseCount: number;
-    completedJobsCount: number;
+    completedAppointmentsCount: number;
   };
 }
 

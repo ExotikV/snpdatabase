@@ -89,19 +89,30 @@ export default function OverviewPage() {
         <>
           <h2 className="section-title">This week</h2>
           <p className="muted section-intro">
-            {weekly.weekLabel}. Monday–Sunday (Eastern).{" "}
+            {weekly.weekLabel}. Sunday–Saturday (Eastern).{" "}
             <Link to="/revenue">Full revenue history</Link> · <Link to="/expenses">Expenses</Link>
           </p>
           <div className="card-grid">
             <div className="card">
-              <div className="card-label">Actual revenue</div>
-              <div className="card-value">{formatCad(weekly.stats.actualRevenueCents)}</div>
-              <div className="muted">{weekly.stats.completedJobsCount} completed details</div>
+              <div className="card-label">Booked revenue</div>
+              <div className="card-value">{formatCad(weekly.stats.bookedRevenueCents)}</div>
+              <div className="muted">New bookings this week</div>
             </div>
             <div className="card">
-              <div className="card-label">New booked revenue</div>
-              <div className="card-value">{formatCad(weekly.stats.bookedRevenueCents)}</div>
-              <div className="muted">Checkouts this week</div>
+              <div className="card-label">Bookings</div>
+              <div className="card-value">{weekly.stats.bookingsCount}</div>
+              <div className="muted">
+                {weekly.stats.clientsBookedCount} unique client
+                {weekly.stats.clientsBookedCount === 1 ? "" : "s"}
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-label">Actual revenue</div>
+              <div className="card-value">{formatCad(weekly.stats.actualRevenueCents)}</div>
+              <div className="muted">
+                {weekly.stats.completedAppointmentsCount ?? 0} completed appointment
+                {(weekly.stats.completedAppointmentsCount ?? 0) === 1 ? "" : "s"} this week
+              </div>
             </div>
             <div className="card">
               <div className="card-label">Still to do</div>
@@ -115,11 +126,6 @@ export default function OverviewPage() {
               <div className="card-label">Expenses</div>
               <div className="card-value">{formatCad(weekly.stats.expensesCents)}</div>
               <div className="muted">{weekly.stats.expenseCount} logged</div>
-            </div>
-            <div className="card">
-              <div className="card-label">Bookings</div>
-              <div className="card-value">{weekly.stats.bookingsCount}</div>
-              <div className="muted">{weekly.stats.clientsBookedCount} unique clients</div>
             </div>
             <div className="card">
               <div className="card-label">Net (actual − expenses)</div>
