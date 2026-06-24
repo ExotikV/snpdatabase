@@ -589,16 +589,16 @@ export interface WeeklyOverviewResponse {
   revenueMigrationRequired: boolean;
   expensesMigrationRequired: boolean;
   stats: {
-    bookedRevenueCents: number;
     actualRevenueCents: number;
-    expensesCents: number;
-    netAfterExpensesCents: number;
+    remainingRevenueCents: number;
+    appointmentsRemainingCount: number;
+    completedAppointmentsCount: number;
     bookingsCount: number;
     clientsBookedCount: number;
-    appointmentsRemainingCount: number;
-    remainingRevenueCents: number;
+    bookedRevenueCents: number;
+    expensesCents: number;
     expenseCount: number;
-    completedAppointmentsCount: number;
+    netAfterExpensesCents: number;
   };
 }
 
