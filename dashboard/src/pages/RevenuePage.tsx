@@ -170,8 +170,8 @@ export default function RevenuePage() {
       <div className="panel" style={{ marginBottom: "1.25rem" }}>
         <h3 className="section-title">{year} by month</h3>
         <p className="muted section-intro">
-          Click a month to filter the booking list below. Monthly actual totals are from Square
-          orders by payment date.
+          Click a month to filter the booking list below. Each total matches completed Square orders
+          for that month (same as Actual revenue above).
         </p>
         <div className="card-grid">
           {(data?.monthlyBreakdown ?? []).map((bucket) => {
@@ -190,11 +190,17 @@ export default function RevenuePage() {
                 onClick={() => setPeriod(monthPeriod)}
               >
                 <div className="card-label">{bucket.label}</div>
-                <div className="card-value">{formatCad(bucket.bookedCents)}</div>
+                <div className="card-value">{formatCad(bucket.actualCents)}</div>
                 <div className="muted">
-                  {bucket.bookingCount} bookings · Square {formatCad(bucket.actualCents)}
                   {bucket.squareOrderCount != null
-                    ? ` (${bucket.squareOrderCount} order${bucket.squareOrderCount === 1 ? "" : "s"})`
+                    ? `${bucket.squareOrderCount} Square order${
+                        bucket.squareOrderCount === 1 ? "" : "s"
+                      }`
+                    : "Square revenue"}
+                  {bucket.bookingCount > 0
+                    ? ` · ${bucket.bookingCount} tracked booking${
+                        bucket.bookingCount === 1 ? "" : "s"
+                      }`
                     : ""}
                 </div>
               </button>
