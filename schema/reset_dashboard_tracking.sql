@@ -1,6 +1,6 @@
 -- Reset dashboard tracking (SMS stats, QR stats, booking attribution, revenue).
 -- Does NOT delete clients, details_completed, or reminder schedules.
--- After running: set QR_CONVERSION_START_DATE in lib/qr-stats.js to today's date.
+-- After running: set QR_CONVERSION_START_DATE in lib/qr-stats.js to the first day you hand out QR cards.
 
 -- All website booking attribution (direct, SMS ref, QR, revenue fields)
 DELETE FROM booking_attempts;
