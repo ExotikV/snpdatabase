@@ -45,7 +45,7 @@ export default function OverviewPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const overview = await fetchOverview();
+      const overview = await fetchOverview(true);
       setData(overview);
       setLastUpdated(new Date());
     } catch (err) {
